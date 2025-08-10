@@ -32,6 +32,11 @@ def custom_swagger_ui_html():
     body = back_link + base.body.decode()
     return HTMLResponse(content=body, status_code=200)
 
+@app.get("/health", include_in_schema=False)
+def health():
+    return {"ok": True}
+
+
 # ---------- Models ----------
 class PortfolioPosition(BaseModel):
     ticker: str
