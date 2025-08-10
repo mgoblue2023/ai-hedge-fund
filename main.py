@@ -5,20 +5,32 @@ import random
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.openapi.docs import get_swagger_ui_html
 from pydantic import BaseModel, Field
 
-app = FastAPI()
-from fastapi.responses import RedirectResponse
+# Disable default docs so we can customize /docs
+app = FastAPI(docs_url=None)
 
+# ---------- Serve ./web at /web ----------
+app.mount("/web", StaticFiles(directory="web", html=True), name="web")
+
+# ---------- Root -> redirect to /web ----------
 @app.get("/", include_in_schema=False)
 def root_redirect():
     return RedirectResponse(url="/web")
 
-
-# ---------- Base route (health) ----------
-
-# Serve ./web at /web
-app.mount("/web", StaticFiles(directory="web", html=True), name="web")
+# ---------- Custom /docs with "Back to UI" ----------
+@app.get("/docs", include_in_schema=False)
+def custom_swagger_ui_html():
+    base = get_swagger_ui_html(openapi_url=app.openapi_url, title="API Docs")
+    back_link = (
+        '<div style="padding:10px;">'
+        '<a href="/web" style="color:#69a8ff;text-decoration:none;">⬅ Back to UI</a>'
+        "</div>"
+    )
+    body = back_link + base.body.decode()
+    return HTMLResponse(content=body, status_code=200)
 
 # ---------- Models ----------
 class PortfolioPosition(BaseModel):
@@ -152,7 +164,6 @@ def equity_curve(req: EquityCurveRequest):
     dates: List[str] = []
     equity: List[float] = []
 
-    # Start near initial_capital; do a mean-reverting drift + noise
     cur = float(req.initial_capital)
     target = cur * random.uniform(0.95, 1.15)  # drift target
     for d in _date_range(req.start_date, req.end_date):
