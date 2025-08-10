@@ -96,6 +96,14 @@
 
     footer{ color:var(--muted); font-size:12px; border-top:1px solid var(--border); padding:14px 20px; text-align:center }
     code{ background:color-mix(in oklab, var(--panel) 70%, black 30%); padding:2px 6px; border-radius:6px; border:1px solid var(--border) }
+
+    /* Health pill */
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:var(--chip)}
+    .pill.ok{border-color:rgba(43,209,138,.35);background:rgba(43,209,138,.12)}
+    .pill.err{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.12)}
+    .pill .dot{width:8px;height:8px;border-radius:50%}
+    .pill.ok .dot{background:#2bd18a}
+    .pill.err .dot{background:#ff6b6b}
   </style>
 </head>
 <body>
@@ -104,7 +112,9 @@
       <span class="dot"></span>
       <h1 class="title">AI Hedge — Starter UI</h1>
     </div>
-    <div class="row">
+    <div class="row" style="gap:12px;align-items:center">
+      <span id="healthPill" class="pill" title="Server health"><span class="dot"></span><span id="healthText">Unknown</span></span>
+      <button id="btnHealth" class="btn">Health</button>
       <button id="btnTheme" class="btn ghost" title="Toggle theme">🌙 / ☀️</button>
     </div>
   </header>
@@ -114,7 +124,7 @@
       <div class="head">Quick Check</div>
       <div class="body">
         <div class="row" style="margin-bottom:10px">
-          <button id="btnPing" class="btn">Call <code>/</code></button>
+          <button id="btnPing" class="btn">Call <code>/health</code></button>
           <button id="btnClearQuick" class="btn red">Clear</button>
           <span id="status" class="status"></span>
         </div>
@@ -167,20 +177,12 @@
     </section>
   </div>
 
-<footer>
-  Open <code>/docs</code> for interactive API docs. This UI will control backtest/run soon.
-  <br>
-  <small style="color: var(--muted);">
-    Live base URL: <span id="baseUrl"></span>
-  </small>
-</footer>
-
-<script>
-  // Set base URL dynamically based on where it's running
-  document.getElementById('baseUrl').textContent = window.location.origin;
-</script>
-
-
+  <footer>
+    <a id="apiDocsLink" target="_blank" style="color:var(--accent); text-decoration:none;">Open API Docs</a>
+    — This UI controls backtest/run.
+    <br/>
+    <small style="color: var(--muted);">Live base URL: <span id="baseUrl"></span></small>
+  </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -196,6 +198,10 @@
         localStorage.setItem("aihedge:theme", next || "");
       });
 
+      // Footer dynamic links
+      document.getElementById("apiDocsLink").href = window.location.origin + "/docs";
+      document.getElementById("baseUrl").textContent = window.location.origin;
+
       // Toast
       const toastEl = document.getElementById("toast");
       function showToast(msg){ toastEl.textContent = msg; toastEl.classList.add("show"); setTimeout(()=>toastEl.classList.remove("show"), 2400); }
@@ -209,7 +215,7 @@
           cardQuick?.classList.add("loading");
           statusEl.className="status"; statusEl.innerHTML='<span class="spinner"></span> Loading…';
           outEl.textContent="(waiting for response…)";
-          const res = await fetch("/");
+          const res = await fetch("/health", { cache: "no-store" });
           if(!res.ok) throw new Error("HTTP " + res.status);
           outEl.textContent = JSON.stringify(await res.json(), null, 2);
           statusEl.className="status ok"; statusEl.textContent="Success";
@@ -219,6 +225,26 @@
         }finally{ cardQuick?.classList.remove("loading"); }
       });
       document.getElementById("btnClearQuick")?.addEventListener("click", ()=>{ outEl.textContent="(click the button)"; statusEl.textContent=""; });
+
+      // Health pill
+      const btnHealth = document.getElementById("btnHealth");
+      const healthPill = document.getElementById("healthPill");
+      const healthText = document.getElementById("healthText");
+      function setHealth(ok){
+        if (!healthPill || !healthText) return;
+        healthPill.classList.remove("ok","err");
+        healthPill.classList.add(ok ? "ok" : "err");
+        healthText.textContent = ok ? "OK" : "Down";
+      }
+      async function pingHealth(){
+        try{
+          const res = await fetch("/health", { cache: "no-store" });
+          setHealth(res.ok);
+        }catch{ setHealth(false); }
+      }
+      btnHealth?.addEventListener("click", pingHealth);
+      pingHealth();
+      setInterval(pingHealth, 60000);
 
       // Hedge-Fund
       const cardHF = document.getElementById("cardHF");
@@ -295,7 +321,7 @@
           <div style="margin-top:8px;font-size:13px;color:var(--muted)">Cash: <strong>$${fmt(fp.cash)}</strong> · Value: <strong>$${fmt(fp.portfolio_value)}</strong></div>`;
       }
 
-      function escapeHTML(s){ return (s+"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+      function escapeHTML(s){ return (s+"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','&gt;':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
       function fmt(v){ return v==null ? "-" : (""+v); }
       function fmtPct(v){ return v==null ? "-" : (Math.round(v*1000)/10)+"%"; }
       function csvSafe(v){ const s=(v??"").toString(); return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s; }
@@ -319,7 +345,7 @@
         a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
       }
 
-      // SVG line chart + PNG export
+      // Chart + PNG
       function drawChart(svg, xVals, yVals){
         if (!svg || !yVals?.length) return;
         const w=svg.viewBox.baseVal.width||600, h=svg.viewBox.baseVal.height||160;
@@ -355,11 +381,12 @@
         img.src = "data:image/svg+xml;base64," + svg64;
       }
 
-      let lastHFResult=null, lastHFKind=null, lastCurveDates=null, lastCurveEquity=null;
+      // Actions
+      let lastHFResult=null, lastHFKind=null;
 
-      btnRun?.addEventListener("click", async () => {
+      document.getElementById("btnRun")?.addEventListener("click", async () => {
         try{
-          chartWrap.hidden = true; btnPNG.disabled = true;
+          document.getElementById("chartWrap").hidden = true; document.getElementById("btnPNG").disabled = true;
           hfLoading();
           hfOut.innerHTML="(running …)";
           const tickers=(inpTickers.value||"").split(",").map(s=>s.trim()).filter(Boolean);
@@ -374,9 +401,9 @@
         }
       });
 
-      btnBacktest?.addEventListener("click", async () => {
+      document.getElementById("btnBacktest")?.addEventListener("click", async () => {
         try{
-          chartWrap.hidden = true; btnPNG.disabled = true;
+          document.getElementById("chartWrap").hidden = true; document.getElementById("btnPNG").disabled = true;
           hfLoading();
           hfOut.innerHTML="(backtesting …)";
           const tickers=(inpTickers.value||"").split(",").map(s=>s.trim()).filter(Boolean);
@@ -387,44 +414,43 @@
           lastHFResult=summary; lastHFKind="backtest"; btnCSV.disabled=false;
           hfOut.innerHTML=renderBacktestResult(summary); hfOk("Backtest complete"); showToast("Backtest complete");
 
-          // fetch real equity curve
+          // equity curve
           const curve = await postJSON("/hedge-fund/equity-curve", {
             tickers, start_date: inpStart.value, end_date: inpEnd.value, initial_capital: Number(inpCash.value||100000)
           });
-          lastCurveDates = curve.dates; lastCurveEquity = curve.equity;
           drawChart(chartSVG, curve.dates, curve.equity);
-          chartWrap.hidden = false; btnPNG.disabled = false;
+          document.getElementById("chartWrap").hidden = false; document.getElementById("btnPNG").disabled = false;
         }catch(e){
-          lastHFResult=null; btnCSV.disabled=true; btnPNG.disabled=true;
+          lastHFResult=null; btnCSV.disabled=true; document.getElementById("btnPNG").disabled=true;
           hfErr(String(e.message||e)); hfOut.innerHTML="Error."; showToast("Backtest failed");
         }
       });
 
-      btnCSV?.addEventListener("click", () => {
+      document.getElementById("btnCSV")?.addEventListener("click", () => {
         if (!lastHFResult || !lastHFKind) return;
         const csv = lastHFKind==="run" ? toCSVRun(lastHFResult) : toCSVBacktest(lastHFResult);
         const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
         downloadCSV(`ai-hedge-${lastHFKind}-${stamp}.csv`, csv);
       });
 
-      btnPNG?.addEventListener("click", () => {
-        if (chartWrap.hidden) return;
-        downloadSVGasPNG(chartSVG, "equity-curve.png");
+      document.getElementById("btnPNG")?.addEventListener("click", () => {
+        if (document.getElementById("chartWrap").hidden) return;
+        downloadSVGasPNG(document.getElementById("equityChart"), "equity-curve.png");
       });
 
-      btnClearHF?.addEventListener("click", () => {
+      document.getElementById("btnClearHF")?.addEventListener("click", () => {
         hfOut.textContent="(results will appear here)";
         hfStatus.textContent="";
         btnCSV.disabled=true; btnPNG.disabled = true;
-        chartWrap.hidden=true; lastCurveDates=null; lastCurveEquity=null;
+        chartWrap.hidden=true;
       });
 
-      // keyboard shortcuts
+      // Keyboard shortcuts for inputs
       document.addEventListener("keydown", (e)=>{
         const tag=document.activeElement?.tagName?.toLowerCase();
         if (tag==="input"){
-          if (e.key==="Enter" && e.shiftKey){ e.preventDefault(); btnBacktest?.click(); }
-          else if (e.key==="Enter"){ e.preventDefault(); btnRun?.click(); }
+          if (e.key==="Enter" && e.shiftKey){ e.preventDefault(); document.getElementById("btnBacktest")?.click(); }
+          else if (e.key==="Enter"){ e.preventDefault(); document.getElementById("btnRun")?.click(); }
         }
       });
     });
