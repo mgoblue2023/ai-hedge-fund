@@ -8,11 +8,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 app = FastAPI()
+from fastapi.responses import RedirectResponse
+
+@app.get("/", include_in_schema=False)
+def root_redirect():
+    return RedirectResponse(url="/web")
+
 
 # ---------- Base route (health) ----------
-@app.get("/")
-def root():
-    return {"ok": True}
 
 # Serve ./web at /web
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
