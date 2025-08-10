@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AI Hedge — Starter UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b1224; --panel:#0e1731; --glass:rgba(255,255,255,.06);
+      --text:#e8edf7; --muted:#9fb0c8; --accent:#69a8ff; --ok:#2bd18a; --warn:#ffd166; --err:#ff6b6b;
+      --border:rgba(255,255,255,.12); --chip:#0e1836;
+    }
+    :root[data-theme="light"]{
+      --bg:#f4f6fb; --panel:#ffffff; --glass:rgba(0,0,0,.04);
+      --text:#0b1224; --muted:#4b5a73; --accent:#2a67ff; --ok:#12a36a; --warn:#a67300; --err:#d14b4b;
+      --border:rgba(0,0,0,.12); --chip:#eef2ff;
+    }
+    *{ box-sizing:border-box } html,body{ height:100% }
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Arial;
+      color:var(--text);
+      background: radial-gradient(1200px 800px at 10% -10%, color-mix(in oklab, var(--panel) 30%, var(--bg) 70%) 0%, var(--bg) 45%, color-mix(in oklab, var(--bg) 90%, black 10%) 100%);
+      display:grid; grid-template-rows:auto 1fr auto; min-height:100%; transition: background .25s ease, color .25s ease;
+    }
+    header{
+      padding:14px 18px; display:flex; align-items:center; gap:12px; justify-content:space-between;
+      border-bottom:1px solid var(--border); backdrop-filter:saturate(140%) blur(6px);
+      background:linear-gradient(180deg, var(--glass), transparent);
+    }
+    .brand{ display:flex; align-items:center; gap:10px }
+    .dot{ width:12px; height:12px; border-radius:50%; background:var(--accent); box-shadow:0 0 18px var(--accent) }
+    .title{ margin:0; font-size:18px; letter-spacing:.2px }
+    .wrap{ max-width:1100px; margin:22px auto; padding:0 20px; width:100% }
+    .hero{ display:grid; grid-template-columns:1.2fr .8fr; gap:22px; }
+    @media (max-width: 900px){ .hero{ grid-template-columns:1fr } }
+
+    .card{
+      background:linear-gradient(180deg, var(--glass), transparent);
+      border:1px solid var(--border); border-radius:18px; box-shadow:0 12px 40px rgba(0,0,0,.12);
+      overflow:visible; position:relative;
+    }
+    .card .head{ padding:16px 18px; border-bottom:1px solid var(--border); font-weight:600 }
+    .card .body{ padding:16px 18px }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+
+    .btn{ appearance:none; border:1px solid var(--border); background:color-mix(in oklab, var(--panel) 70%, black 30%); color:var(--text);
+      padding:9px 13px; border-radius:12px; cursor:pointer; font-weight:600; }
+    .btn:hover{ border-color:color-mix(in oklab, var(--border) 40%, var(--text) 60%) }
+    .btn.ghost{ background:transparent }
+    .btn.red{ background:color-mix(in oklab, #b00020 35%, var(--panel)); color:#fff; border-color:transparent }
+    .btn.primary{ background:color-mix(in oklab, var(--accent) 35%, var(--panel)); color:#fff; border-color:transparent }
+
+    input[type="text"], input[type="number"], input[type="date"]{
+      background:color-mix(in oklab, var(--panel) 70%, black 30%); color:var(--text); border:1px solid var(--border);
+      padding:10px 12px; border-radius:10px; min-width:220px;
+    }
+    label{ font-size:13px; color:var(--muted) }
+    .status{ font-size:13px; color:var(--muted); min-height:24px }
+    .status.ok{ color:var(--ok) } .status.err{ color:var(--err) }
+    pre{ margin:0; background:color-mix(in oklab, var(--panel) 70%, black 30%); border:1px solid var(--border); color:inherit;
+      padding:14px; border-radius:12px; overflow:auto; max-height:380px; white-space:pre-wrap; word-break:break-word }
+
+    .badge{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:var(--chip) }
+    .b-buy{ background:rgba(43,209,138,.12); border-color:rgba(43,209,138,.35) }
+    .b-hold{ background:rgba(255,209,102,.12); border-color:rgba(255,209,102,.35) }
+    .b-sell{ background:rgba(255,107,107,.12); border-color:rgba(255,107,107,.35) }
+    .b-bull{ background:rgba(43,209,138,.12); border-color:rgba(43,209,138,.35) }
+    .b-bear{ background:rgba(255,107,107,.12); border-color:rgba(255,107,107,.35) }
+    .b-neutral{ background:rgba(105,168,255,.12); border-color:rgba(105,168,255,.35) }
+
+    table{ width:100%; border-collapse:separate; border-spacing:0; margin-top:8px; border:1px solid var(--border); border-radius:12px; overflow:hidden }
+    th, td{ text-align:left; padding:10px 12px; border-bottom:1px solid color-mix(in oklab, var(--border) 50%, transparent) }
+    th{ background:color-mix(in oklab, var(--panel) 70%, black 30%); color:inherit; font-weight:600 }
+    tr:last-child td{ border-bottom:none }
+
+    .metrics{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:10px 0 0 }
+    .metric{ background:color-mix(in oklab, var(--panel) 70%, black 30%); border:1px solid var(--border); border-radius:12px; padding:12px }
+    .metric .k{ font-size:12px; color:var(--muted) }
+    .metric .v{ font-size:18px; margin-top:4px }
+
+    .chart{ width:100%; height:160px; margin-top:12px; background:color-mix(in oklab, var(--panel) 70%, black 30%); border:1px solid var(--border); border-radius:12px; padding:8px }
+    .chart svg{ width:100%; height:100%; display:block }
+
+    #hfOut { overflow:auto; }  #hfOut table { width:100%; }
+
+    .toast{ position:fixed; bottom:20px; right:20px; background:#222; padding:12px 18px; border-radius:8px; color:#fff; opacity:0; transform:translateY(20px); transition:opacity .3s, transform .3s; z-index:9999 }
+    .toast.show{ opacity:1; transform:translateY(0) }
+
+    .overlay{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; gap:10px;
+      background:color-mix(in oklab, var(--bg) 65%, transparent); border-radius:18px; z-index:20; color:var(--text); font-weight:600; backdrop-filter: blur(2px) }
+    .overlay .spinner{ width:18px; height:18px; border:2px solid rgba(255,255,255,.25); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite }
+    .card.loading .overlay{ display:flex }
+
+    .spinner{ width:16px; height:16px; border:2px solid rgba(255,255,255,.25); border-top-color:var(--accent); border-radius:50%; display:inline-block; animation:spin 1s linear infinite; vertical-align:-3px }
+    @keyframes spin{ to{ transform:rotate(360deg) } }
+
+    footer{ color:var(--muted); font-size:12px; border-top:1px solid var(--border); padding:14px 20px; text-align:center }
+    code{ background:color-mix(in oklab, var(--panel) 70%, black 30%); padding:2px 6px; border-radius:6px; border:1px solid var(--border) }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="dot"></span>
+      <h1 class="title">AI Hedge — Starter UI</h1>
+    </div>
+    <div class="row">
+      <button id="btnTheme" class="btn ghost" title="Toggle theme">🌙 / ☀️</button>
+    </div>
+  </header>
+
+  <div class="wrap hero">
+    <section class="card" id="cardQuick">
+      <div class="head">Quick Check</div>
+      <div class="body">
+        <div class="row" style="margin-bottom:10px">
+          <button id="btnPing" class="btn">Call <code>/</code></button>
+          <button id="btnClearQuick" class="btn red">Clear</button>
+          <span id="status" class="status"></span>
+        </div>
+        <pre id="out">(click the button)</pre>
+      </div>
+      <div class="overlay"><span class="spinner"></span>Loading…</div>
+    </section>
+
+    <section class="card" id="cardHF">
+      <div class="head">Hedge-Fund Controls</div>
+      <div class="body">
+        <div style="display:grid; gap:12px">
+          <div>
+            <label for="tickers">Tickers</label><br/>
+            <input id="tickers" type="text" placeholder="e.g. AAPL, MSFT" />
+          </div>
+          <div class="row">
+            <div>
+              <label for="start">Start date</label><br/>
+              <input id="start" type="date" />
+            </div>
+            <div>
+              <label for="end">End date</label><br/>
+              <input id="end" type="date" />
+            </div>
+          </div>
+          <div>
+            <label for="cash">Initial cash ($)</label><br/>
+            <input id="cash" type="number" value="100000" />
+          </div>
+          <div class="row">
+            <button id="btnRun" class="btn primary">Run</button>
+            <button id="btnBacktest" class="btn">Backtest</button>
+            <button id="btnCSV" class="btn" disabled>Download CSV</button>
+            <button id="btnPNG" class="btn" disabled>Download PNG</button>
+            <button id="btnClearHF" class="btn red">Clear</button>
+            <span id="hfStatus" class="status"></span>
+          </div>
+          <h4 style="margin:12px 0 6px">Result</h4>
+          <div id="hfOut" style="background:color-mix(in oklab, var(--panel) 70%, black 30%);border:1px solid var(--border);border-radius:12px;padding:14px;min-height:70px;"></div>
+          <div id="chartWrap" class="chart" hidden>
+            <svg id="equityChart" viewBox="0 0 600 160" preserveAspectRatio="none" aria-label="Equity curve"></svg>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px">
+            Shortcuts: <strong>Enter</strong> = Run, <strong>Shift+Enter</strong> = Backtest.
+          </div>
+        </div>
+      </div>
+      <div class="overlay"><span class="spinner"></span>Working…</div>
+    </section>
+  </div>
+
+  <footer>
+    Open <code>/docs</code> for interactive API docs. This UI controls backtest/run.
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      // Theme
+      const root = document.documentElement;
+      const savedTheme = localStorage.getItem("aihedge:theme");
+      if (savedTheme) root.setAttribute("data-theme", savedTheme);
+      document.getElementById("btnTheme")?.addEventListener("click", () => {
+        const next = root.getAttribute("data-theme")==="light" ? null : "light";
+        if (next) root.setAttribute("data-theme", next); else root.removeAttribute("data-theme");
+        localStorage.setItem("aihedge:theme", next || "");
+      });
+
+      // Toast
+      const toastEl = document.getElementById("toast");
+      function showToast(msg){ toastEl.textContent = msg; toastEl.classList.add("show"); setTimeout(()=>toastEl.classList.remove("show"), 2400); }
+
+      // Quick Check
+      const cardQuick = document.getElementById("cardQuick");
+      const statusEl = document.getElementById("status");
+      const outEl = document.getElementById("out");
+      document.getElementById("btnPing")?.addEventListener("click", async () => {
+        try{
+          cardQuick?.classList.add("loading");
+          statusEl.className="status"; statusEl.innerHTML='<span class="spinner"></span> Loading…';
+          outEl.textContent="(waiting for response…)";
+          const res = await fetch("/");
+          if(!res.ok) throw new Error("HTTP " + res.status);
+          outEl.textContent = JSON.stringify(await res.json(), null, 2);
+          statusEl.className="status ok"; statusEl.textContent="Success";
+        }catch(e){
+          statusEl.className="status err"; statusEl.textContent=String(e.message||e);
+          outEl.textContent="No response or an error occurred.";
+        }finally{ cardQuick?.classList.remove("loading"); }
+      });
+      document.getElementById("btnClearQuick")?.addEventListener("click", ()=>{ outEl.textContent="(click the button)"; statusEl.textContent=""; });
+
+      // Hedge-Fund
+      const cardHF = document.getElementById("cardHF");
+      const hfStatus = document.getElementById("hfStatus");
+      const hfOut = document.getElementById("hfOut");
+      const chartWrap = document.getElementById("chartWrap");
+      const chartSVG = document.getElementById("equityChart");
+      const inpTickers = document.getElementById("tickers");
+      const inpStart = document.getElementById("start");
+      const inpEnd = document.getElementById("end");
+      const inpCash = document.getElementById("cash");
+      const btnRun = document.getElementById("btnRun");
+      const btnBacktest = document.getElementById("btnBacktest");
+      const btnCSV = document.getElementById("btnCSV");
+      const btnPNG = document.getElementById("btnPNG");
+      const btnClearHF = document.getElementById("btnClearHF");
+
+      // persist form
+      const FKEY = "aihedge:form";
+      const saved = JSON.parse(localStorage.getItem(FKEY) || "{}");
+      if (saved.tickers) inpTickers.value = saved.tickers;
+      if (saved.start) inpStart.value = saved.start;
+      if (saved.end) inpEnd.value = saved.end;
+      if (saved.cash) inpCash.value = saved.cash;
+      [inpTickers, inpStart, inpEnd, inpCash].forEach(el => el?.addEventListener("input", () => {
+        localStorage.setItem(FKEY, JSON.stringify({ tickers: inpTickers.value, start: inpStart.value, end: inpEnd.value, cash: inpCash.value }));
+      }));
+
+      function hfLoading(){ hfStatus.className="status"; hfStatus.innerHTML='<span class="spinner"></span> Working…'; cardHF?.classList.add("loading"); }
+      function hfOk(msg){ hfStatus.className="status ok"; hfStatus.textContent=msg; cardHF?.classList.remove("loading"); }
+      function hfErr(msg){ hfStatus.className="status err"; hfStatus.textContent=msg; cardHF?.classList.remove("loading"); }
+
+      async function postJSON(path, body){
+        const res = await fetch(path, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      }
+
+      const ICONS = {
+        buy:'<svg width="14" height="14" viewBox="0 0 24 24"><path fill="#29d18b" d="M12 2l4 7h-3v7h-2V9H8l4-7z"/></svg>',
+        sell:'<svg width="14" height="14" viewBox="0 0 24 24"><path fill="#ff6b6b" d="M12 22l-4-7h3V8h2v7h3l-4 7z"/></svg>',
+        hold:'<svg width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#ffd166"/></svg>',
+        bull:'<svg width="14" height="14" viewBox="0 0 24 24"><path fill="#29d18b" d="M4 13h16v2H4z"/></svg>',
+        bear:'<svg width="14" height="14" viewBox="0 0 24 24"><path fill="#ff6b6b" d="M4 9h16v2H4z"/></svg>',
+        neutral:'<svg width="14" height="14" viewBox="0 0 24 24"><rect x="6" y="11" width="12" height="2" fill="#69a8ff"/></svg>'
+      };
+      function badge(text, cls, icon){ return `<span class="badge ${cls}">${icon||""}<span>${text}</span></span>`; }
+
+      function renderRunResult(data){
+        if (!data?.decisions) return `<pre>${escapeHTML(JSON.stringify(data,null,2))}</pre>`;
+        const rows = Object.keys(data.decisions).map(t=>{
+          const d=data.decisions[t]||{}, a=(data.analyst_signals||{})[t]||{};
+          const action=(d.action||"").toLowerCase(), signal=(a.signal||"").toLowerCase();
+          const conf=a.confidence!=null?(a.confidence*100).toFixed(0)+"%":"-";
+          const actionBadge=action==="buy"?badge("BUY","b-buy",ICONS.buy):action==="sell"?badge("SELL","b-sell",ICONS.sell):badge("HOLD","b-hold",ICONS.hold);
+          const signalBadge=signal==="bullish"?badge("Bullish","b-bull",ICONS.bull):signal==="bearish"?badge("Bearish","b-bear",ICONS.bear):badge("Neutral","b-neutral",ICONS.neutral);
+          return `<tr><td><strong>${t}</strong></td><td>${actionBadge}</td><td>${signalBadge}</td><td>${conf}</td><td>${d.quantity??"-"}</td></tr>`;
+        }).join("");
+        return `<div style="font-size:13px;color:var(--muted)">Model decisions</div>
+          <table><thead><tr><th>Ticker</th><th>Decision</th><th>Analyst</th><th>Confidence</th><th>Qty</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }
+
+      function renderBacktestResult(data){
+        if (!data?.performance_metrics) return `<pre>${escapeHTML(JSON.stringify(data,null,2))}</pre>`;
+        const pm=data.performance_metrics||{}, fp=data.final_portfolio||{}, pos=fp.positions||{};
+        const posRows=Object.keys(pos).map(t=>`<tr><td>${t}</td><td>${pos[t]}</td></tr>`).join("")||'<tr><td colspan="2">No positions</td></tr>';
+        return `<div class="metrics">
+            <div class="metric"><div class="k">Sharpe</div><div class="v">${fmt(pm.sharpe_ratio)}</div></div>
+            <div class="metric"><div class="k">Max Drawdown</div><div class="v">${fmtPct(pm.max_drawdown)}</div></div>
+            <div class="metric"><div class="k">Days</div><div class="v">${fmt(data.total_days)}</div></div>
+          </div>
+          <div style="margin-top:12px;font-size:13px;color:var(--muted)">Final portfolio</div>
+          <table><thead><tr><th>Ticker</th><th>Qty</th></tr></thead><tbody>${posRows}</tbody></table>
+          <div style="margin-top:8px;font-size:13px;color:var(--muted)">Cash: <strong>$${fmt(fp.cash)}</strong> · Value: <strong>$${fmt(fp.portfolio_value)}</strong></div>`;
+      }
+
+      function escapeHTML(s){ return (s+"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+      function fmt(v){ return v==null ? "-" : (""+v); }
+      function fmtPct(v){ return v==null ? "-" : (Math.round(v*1000)/10)+"%"; }
+      function csvSafe(v){ const s=(v??"").toString(); return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s; }
+
+      function toCSVRun(data){
+        const header=["ticker","action","quantity","analyst_signal","confidence"];
+        const rows=Object.keys(data.decisions||{}).map(t=>{
+          const d=data.decisions[t]||{}, a=(data.analyst_signals||{})[t]||{};
+          return [t,d.action??"",d.quantity??"",a.signal??"",a.confidence??""];
+        });
+        return [header,...rows].map(r=>r.map(csvSafe).join(",")).join("\n");
+      }
+      function toCSVBacktest(data){
+        const header=["ticker","quantity"], pos=(data.final_portfolio&&data.final_portfolio.positions)||{};
+        const rows=Object.keys(pos).map(t=>[t,pos[t]]);
+        const extras=[[],["cash",data.final_portfolio?.cash??""],["portfolio_value",data.final_portfolio?.portfolio_value??""],["sharpe_ratio",data.performance_metrics?.sharpe_ratio??""],["max_drawdown",data.performance_metrics?.max_drawdown??""],["total_days",data.total_days??""]];
+        return [header,...rows,...extras].map(r=>r.map(csvSafe).join(",")).join("\n");
+      }
+      function downloadCSV(filename, text){
+        const blob=new Blob([text],{type:"text/csv;charset=utf-8;"}); const a=document.createElement("a");
+        a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      }
+
+      // SVG line chart + PNG export
+      function drawChart(svg, xVals, yVals){
+        if (!svg || !yVals?.length) return;
+        const w=svg.viewBox.baseVal.width||600, h=svg.viewBox.baseVal.height||160;
+        const min=Math.min(...yVals), max=Math.max(...yVals);
+        const nx=i => (i/(yVals.length-1))*w;
+        const ny=v => h - ((v-min)/(max-min||1))*h;
+        let d=`M ${nx(0)} ${ny(yVals[0])}`;
+        for(let i=1;i<yVals.length;i++) d+=` L ${nx(i)} ${ny(yVals[i])}`;
+        svg.innerHTML = `
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.9"/>
+              <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.2"/>
+            </linearGradient>
+          </defs>
+          <path d="${d}" fill="none" stroke="url(#g)" stroke-width="2"/>
+        `;
+      }
+      function downloadSVGasPNG(svgEl, filename="equity-curve.png"){
+        const xml = new XMLSerializer().serializeToString(svgEl);
+        const img = new Image();
+        const svg64 = btoa(unescape(encodeURIComponent(xml)));
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = svgEl.viewBox.baseVal.width || svgEl.clientWidth || 600;
+          canvas.height = svgEl.viewBox.baseVal.height || svgEl.clientHeight || 160;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const a = document.createElement("a");
+          a.href = canvas.toDataURL("image/png");
+          a.download = filename; a.click();
+        };
+        img.src = "data:image/svg+xml;base64," + svg64;
+      }
+
+      let lastHFResult=null, lastHFKind=null, lastCurveDates=null, lastCurveEquity=null;
+
+      btnRun?.addEventListener("click", async () => {
+        try{
+          chartWrap.hidden = true; btnPNG.disabled = true;
+          hfLoading();
+          hfOut.innerHTML="(running …)";
+          const tickers=(inpTickers.value||"").split(",").map(s=>s.trim()).filter(Boolean);
+          if (!tickers.length) throw new Error("Enter at least one ticker (e.g. AAPL).");
+          const payload={ tickers, start_date: inpStart?.value||null, end_date: inpEnd?.value||null, initial_cash: Number(inpCash.value||100000) };
+          const data=await postJSON("/hedge-fund/run", payload);
+          lastHFResult=data; lastHFKind="run"; btnCSV.disabled=false;
+          hfOut.innerHTML=renderRunResult(data); hfOk("Run complete"); showToast("Run complete");
+        }catch(e){
+          lastHFResult=null; btnCSV.disabled=true;
+          hfErr(String(e.message||e)); hfOut.innerHTML="Error."; showToast("Run failed");
+        }
+      });
+
+      btnBacktest?.addEventListener("click", async () => {
+        try{
+          chartWrap.hidden = true; btnPNG.disabled = true;
+          hfLoading();
+          hfOut.innerHTML="(backtesting …)";
+          const tickers=(inpTickers.value||"").split(",").map(s=>s.trim()).filter(Boolean);
+          if (!tickers.length) throw new Error("Enter at least one ticker.");
+          if (!inpStart?.value || !inpEnd?.value) throw new Error("Pick start and end dates.");
+          const payload={ tickers, start_date: inpStart.value, end_date: inpEnd.value, initial_capital: Number(inpCash.value||100000) };
+          const summary=await postJSON("/hedge-fund/backtest", payload);
+          lastHFResult=summary; lastHFKind="backtest"; btnCSV.disabled=false;
+          hfOut.innerHTML=renderBacktestResult(summary); hfOk("Backtest complete"); showToast("Backtest complete");
+
+          // fetch real equity curve
+          const curve = await postJSON("/hedge-fund/equity-curve", {
+            tickers, start_date: inpStart.value, end_date: inpEnd.value, initial_capital: Number(inpCash.value||100000)
+          });
+          lastCurveDates = curve.dates; lastCurveEquity = curve.equity;
+          drawChart(chartSVG, curve.dates, curve.equity);
+          chartWrap.hidden = false; btnPNG.disabled = false;
+        }catch(e){
+          lastHFResult=null; btnCSV.disabled=true; btnPNG.disabled=true;
+          hfErr(String(e.message||e)); hfOut.innerHTML="Error."; showToast("Backtest failed");
+        }
+      });
+
+      btnCSV?.addEventListener("click", () => {
+        if (!lastHFResult || !lastHFKind) return;
+        const csv = lastHFKind==="run" ? toCSVRun(lastHFResult) : toCSVBacktest(lastHFResult);
+        const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+        downloadCSV(`ai-hedge-${lastHFKind}-${stamp}.csv`, csv);
+      });
+
+      btnPNG?.addEventListener("click", () => {
+        if (chartWrap.hidden) return;
+        downloadSVGasPNG(chartSVG, "equity-curve.png");
+      });
+
+      btnClearHF?.addEventListener("click", () => {
+        hfOut.textContent="(results will appear here)";
+        hfStatus.textContent="";
+        btnCSV.disabled=true; btnPNG.disabled = true;
+        chartWrap.hidden=true; lastCurveDates=null; lastCurveEquity=null;
+      });
+
+      // keyboard shortcuts
+      document.addEventListener("keydown", (e)=>{
+        const tag=document.activeElement?.tagName?.toLowerCase();
+        if (tag==="input"){
+          if (e.key==="Enter" && e.shiftKey){ e.preventDefault(); btnBacktest?.click(); }
+          else if (e.key==="Enter"){ e.preventDefault(); btnRun?.click(); }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
