@@ -11,6 +11,10 @@ from pydantic import BaseModel, Field
 
 # Disable default docs so we can customize /docs
 app = FastAPI(docs_url=None)
+@app.get("/health", include_in_schema=False)
+def health():
+    return {"ok": True}
+
 
 # ---------- Serve ./web at /web ----------
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
