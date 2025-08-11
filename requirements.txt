@@ -2,6 +2,6 @@ fastapi
 uvicorn[standard]
 pydantic
 gunicorn
-pandas==2.2.2
-numpy==1.26.4
+pandas==2.2.3
+numpy>=2.0,<2.4
 yfinance==0.2.43
