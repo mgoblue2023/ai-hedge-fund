@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import os
 from datetime import datetime
@@ -8,6 +7,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 from fastapi import FastAPI, HTTPException
+from fastapi import Request
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -15,14 +15,23 @@ from pydantic import BaseModel, Field
 
 app = FastAPI(docs_url=None, redoc_url=None, title="AI Hedge Fund API")
 
+# Serve ./web at /web
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
 if os.path.isdir(WEB_DIR):
     app.mount("/web", StaticFiles(directory=WEB_DIR, html=True), name="web")
 
+
+# ---------- Root & Docs ----------
 @app.get("/", include_in_schema=False)
-def root_redirect():
-    # Keep "/" as JSON quick check so your button succeeds; still fine if you prefer redirect.
+def root(request: Request):
+    # If a browser (Accept: text/html or typical UA), send them to the UI.
+    accept = (request.headers.get("accept") or "").lower()
+    ua = (request.headers.get("user-agent") or "").lower()
+    if "text/html" in accept or "mozilla" in ua or "chrome" in ua or "safari" in ua:
+        return RedirectResponse(url="/web/")
+    # Otherwise, keep returning simple JSON for health checks/bots.
     return {"ok": True}
+
 
 @app.get("/docs", include_in_schema=False)
 async def custom_docs():
@@ -39,7 +48,8 @@ async def custom_docs():
 def health():
     return {"ok": True, "ts": datetime.utcnow().isoformat() + "Z"}
 
-# ----------- Models -----------
+
+# ---------- Models ----------
 class PortfolioPosition(BaseModel):
     ticker: str
     quantity: float
@@ -65,9 +75,10 @@ class PricesRequest(BaseModel):
     end_date: Optional[str] = None
     interval: Optional[str] = "1d"
 
-# ----------- Helpers -----------
+
+# ---------- Helpers ----------
 def _parse_date(s: str) -> pd.Timestamp:
-    return pd.to_datetime(s).tz_localize(None)  # naive for simplicity
+    return pd.to_datetime(s).tz_localize(None)
 
 def _metrics(equity: pd.Series) -> Dict[str, float]:
     rets = equity.pct_change().dropna()
@@ -92,23 +103,77 @@ def _sma_returns(close: pd.Series, fast: int = 20, slow: int = 50) -> pd.Series:
     rets = close.pct_change().fillna(0.0)
     return position * rets
 
-# ----------- Endpoints -----------
+def _latest_sma_signal(close: pd.Series, fast: int = 20, slow: int = 50) -> Dict[str, Any]:
+    fast_ma = close.rolling(fast, min_periods=fast).mean()
+    slow_ma = close.rolling(slow, min_periods=slow).mean()
+    if fast_ma.dropna().empty or slow_ma.dropna().empty:
+        return {"signal": "hold", "confidence": 0.0}
+    f, s = float(fast_ma.iloc[-1]), float(slow_ma.iloc[-1])
+    price = float(close.iloc[-1])
+    spread = abs(f - s) / max(price, 1e-9)
+    conf = max(0.0, min(0.95, round(spread * 10, 2)))
+    if f > s:
+        return {"signal": "buy", "confidence": conf, "price": price}
+    elif f < s:
+        return {"signal": "sell", "confidence": conf, "price": price}
+    else:
+        return {"signal": "hold", "confidence": 0.0, "price": price}
 
+
+# ---------- Endpoints ----------
 @app.post("/hedge-fund/run")
-def run_decisions(req: RunRequest):
+def hedge_run(req: RunRequest):
+    """
+    Produce real buy/sell/hold signals using latest SMA(20/50).
+    Keeps the original response shape: { decisions: {t: {action, quantity}}, analyst_signals: {...} }.
+    """
     if not req.tickers:
         raise HTTPException(status_code=400, detail="Provide at least one ticker.")
-    # keep it mock/simple for now
-    rng = np.random.default_rng(42)
-    actions = ["buy", "hold", "sell"]
-    decisions = {
-        t: {"action": actions[rng.integers(0, 3)], "quantity": int(rng.integers(1, 6))}
-        for t in req.tickers
-    }
-    analyst = {
-        t: {"signal": rng.choice(["bullish", "bearish", "neutral"]), "confidence": float(np.round(rng.uniform(0.55, 0.9), 2))}
-        for t in req.tickers
-    }
+
+    end = pd.Timestamp.today().normalize()
+    start = end - pd.Timedelta(days=220)  # enough for 50-day MA warmup
+
+    df = yf.download(
+        tickers=" ".join(req.tickers),
+        start=start.strftime("%Y-%m-%d"),
+        end=end.strftime("%Y-%m-%d"),
+        interval="1d",
+        auto_adjust=True,
+        progress=False,
+        group_by="ticker",
+        threads=True,
+    )
+
+    decisions: Dict[str, Any] = {}
+    analyst: Dict[str, Any] = {}
+
+    if isinstance(df.columns, pd.MultiIndex):
+        for t in req.tickers:
+            try:
+                sub = df.xs(t, axis=1, level=0)
+                close = sub["Close"].dropna()
+            except Exception:
+                close = pd.Series(dtype=float)
+            sig = _latest_sma_signal(close)
+            action = {"buy": "buy", "sell": "sell"}.get(sig.get("signal"), "hold")
+            qty = 0 if action == "hold" else 1
+            decisions[t] = {"action": action, "quantity": qty}
+            analyst[t] = {"signal": sig.get("signal", "hold"),
+                          "confidence": sig.get("confidence", 0.0),
+                          "price": sig.get("price", None)}
+    else:
+        # single ticker frame
+        if "Close" in df.columns and req.tickers:
+            close = df["Close"].dropna()
+            t = req.tickers[0]
+            sig = _latest_sma_signal(close)
+            action = {"buy": "buy", "sell": "sell"}.get(sig.get("signal"), "hold")
+            qty = 0 if action == "hold" else 1
+            decisions[t] = {"action": action, "quantity": qty}
+            analyst[t] = {"signal": sig.get("signal", "hold"),
+                          "confidence": sig.get("confidence", 0.0),
+                          "price": sig.get("price", None)}
+
     return {"decisions": decisions, "analyst_signals": analyst, "generated_at": datetime.utcnow().isoformat() + "Z"}
 
 @app.post("/data/prices")
@@ -138,17 +203,22 @@ def get_prices(req: PricesRequest):
             if "Close" not in sub.columns:
                 continue
             ser = sub["Close"].dropna()
-            out.append({"ticker": t, "dates": ser.index.strftime("%Y-%m-%d").tolist(), "closes": ser.round(6).astype(float).tolist()})
+            if ser.empty:
+                continue
+            out.append({"ticker": t,
+                        "dates": ser.index.strftime("%Y-%m-%d").tolist(),
+                        "closes": ser.round(6).astype(float).tolist()})
     else:
         if "Close" not in df.columns:
             raise HTTPException(status_code=404, detail="No price data.")
         ser = df["Close"].dropna()
-        out.append({"ticker": req.tickers[0], "dates": ser.index.strftime("%Y-%m-%d").tolist(), "closes": ser.round(6).astype(float).tolist()})
+        out.append({"ticker": req.tickers[0],
+                    "dates": ser.index.strftime("%Y-%m-%d").tolist(),
+                    "closes": ser.round(6).astype(float).tolist()})
     return {"data": out}
 
 @app.post("/hedge-fund/backtest")
 def backtest(req: BacktestRequest):
-    # real SMA by default; equal-weight if multiple tickers
     if not req.tickers:
         raise HTTPException(status_code=400, detail="Provide at least one ticker.")
     try:
@@ -176,11 +246,11 @@ def backtest(req: BacktestRequest):
         for t in req.tickers:
             try:
                 sub = df.xs(t, axis=1, level=0)
+                if "Close" not in sub.columns:
+                    continue
+                close = sub["Close"].dropna()
             except Exception:
                 continue
-            if "Close" not in sub.columns:
-                continue
-            close = sub["Close"].dropna()
             strat_rets.append(_sma_returns(close))
             bench_rets.append(close.pct_change().fillna(0.0))
     else:
@@ -195,8 +265,8 @@ def backtest(req: BacktestRequest):
 
     strat_df = pd.concat(strat_rets, axis=1).fillna(0.0)
     bench_df = pd.concat(bench_rets, axis=1).fillna(0.0)
-    port_rets = strat_df.mean(axis=1)  # equal-weight
-    bench_rets_eq = bench_df.mean(axis=1)
+    port_rets = strat_df.mean(axis=1)          # equal-weight strategy
+    bench_rets_eq = bench_df.mean(axis=1)      # equal-weight benchmark
 
     equity = (1 + port_rets).cumprod() * float(req.initial_capital)
     bench = (1 + bench_rets_eq).cumprod() * float(req.initial_capital)
@@ -209,7 +279,6 @@ def backtest(req: BacktestRequest):
         "benchmark": bench.round(2).astype(float).tolist(),
     }
 
-    # Minimal final_portfolio stub (kept for compatibility with your UI)
     final_port = {
         "cash": round(float(equity.iloc[-1]), 2),
         "positions": {t: 0 for t in req.tickers},
@@ -223,6 +292,7 @@ def backtest(req: BacktestRequest):
         "equity_curve": equity_curve,
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
+
 
 # Local dev entrypoint (Render uses gunicorn via Procfile)
 if __name__ == "__main__":
