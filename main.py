@@ -275,6 +275,184 @@ def executions(
         price=r[6], fill_price=r[7], slippage_bps=r[8], fee=r[9], order_id=r[10],
         status=r[11], notes=r[12]) for r in rows]
 
+# -------------------------
+# SMA signal + backtest (no extra deps; uses Stooq CSV)
+# -------------------------
+def _canon_symbol_for_stooq(symbol: str) -> str:
+    s = (symbol or "").strip().lower()
+    if not s:
+        raise HTTPException(400, "symbol is required")
+    # Stooq uses .us for U.S. tickers (aapl.us, msft.us)
+    if "." not in s:
+        s = s + ".us"
+    return s
+
+def _fetch_daily_from_stooq(symbol: str):
+    sym = _canon_symbol_for_stooq(symbol)
+    url = f"https://stooq.com/q/d/l/?s={sym}&i=d"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            text = resp.read().decode("utf-8")
+    except Exception as e:
+        raise HTTPException(502, f"data fetch failed for {symbol}: {e}")
+
+    rdr = csv.DictReader(io.StringIO(text))
+    rows = []
+    for r in rdr:
+        try:
+            d = r["Date"]
+            c = float(r["Close"])
+            if d and c > 0:
+                rows.append({"date": d, "close": c})
+        except Exception:
+            continue
+    # Stooq returns newest last already, but sort to be safe
+    rows.sort(key=lambda x: x["date"])
+    if len(rows) < 30:
+        raise HTTPException(404, f"not enough history for {symbol}")
+    return rows  # [{date:'YYYY-MM-DD', close: float}, ...]
+
+def _sma(values, window: int):
+    if window <= 0:
+        raise ValueError("window must be > 0")
+    out, s = [], 0.0
+    from collections import deque
+    q = deque()
+    for v in values:
+        q.append(v); s += v
+        if len(q) > window:
+            s -= q.popleft()
+        out.append(s / len(q))
+    return out
+
+@trading.get("/signal")
+def signal(symbol: str, fast: int = 10, slow: int = 20):
+    if fast >= slow:
+        raise HTTPException(400, "fast must be < slow")
+    rows = _fetch_daily_from_stooq(symbol)
+    closes = [r["close"] for r in rows]
+    sma_fast = _sma(closes, fast)
+    sma_slow = _sma(closes, slow)
+
+    # Determine state & most recent cross
+    above_now = sma_fast[-1] > sma_slow[-1]
+    above_prev = sma_fast[-2] > sma_slow[-2]
+    if above_now and not above_prev:
+        sig = "BUY"
+    elif (not above_now) and above_prev:
+        sig = "SELL"
+    else:
+        sig = "HOLD"
+
+    return {
+        "symbol": symbol.upper(),
+        "asof": rows[-1]["date"],
+        "price": closes[-1],
+        "fast": fast, "slow": slow,
+        "sma_fast": round(sma_fast[-1], 4),
+        "sma_slow": round(sma_slow[-1], 4),
+        "state": "above" if above_now else ("equal" if sma_fast[-1] == sma_slow[-1] else "below"),
+        "signal": sig,
+        "n_bars": len(rows),
+    }
+
+@trading.get("/backtest")
+def backtest(
+    symbol: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    fast: int = 10,
+    slow: int = 20,
+    initial_cash: float = 10_000.0,
+):
+    # Backward-compat: if no symbol provided, keep the old stub response
+    if not symbol:
+        return {
+            "ok": True,
+            "action": "backtest",
+            "metrics": {"trades": 0, "pnl": 0.0},
+            "utc": dt.datetime.utcnow().isoformat() + "Z",
+        }
+
+    if fast >= slow:
+        raise HTTPException(400, "fast must be < slow")
+
+    rows = _fetch_daily_from_stooq(symbol)
+    # Apply optional date slicing
+    if start:
+        rows = [r for r in rows if r["date"] >= start]
+    if end:
+        rows = [r for r in rows if r["date"] <= end]
+    if len(rows) < slow + 10:
+        raise HTTPException(400, "not enough bars for the chosen windows/range")
+
+    closes = [r["close"] for r in rows]
+    dates = [r["date"] for r in rows]
+    sma_fast = _sma(closes, fast)
+    sma_slow = _sma(closes, slow)
+
+    # Simple long-only: in market when fast > slow; out otherwise
+    equity = [initial_cash]
+    position = 0
+    trades = 0
+    max_equity = initial_cash
+    max_drawdown = 0.0
+    wins = 0
+    loss_trades = 0
+
+    # Track trade outcome on each entry/exit pair
+    entry_equity = None
+
+    for i in range(1, len(closes)):
+        in_market = 1 if sma_fast[i - 1] > sma_slow[i - 1] else 0
+        ret = (closes[i] / closes[i - 1]) - 1.0
+        new_equity = equity[-1] * (1 + in_market * ret)
+        equity.append(new_equity)
+
+        # detect cross (entry/exit) at the OPEN of next day approximation
+        prev_state = sma_fast[i - 1] > sma_slow[i - 1]
+        now_state = sma_fast[i] > sma_slow[i]
+        if now_state != prev_state:
+            trades += 1
+            if now_state and entry_equity is None:
+                entry_equity = new_equity
+            elif (not now_state) and entry_equity is not None:
+                if new_equity > entry_equity:
+                    wins += 1
+                else:
+                    loss_trades += 1
+                entry_equity = None
+
+        if new_equity > max_equity:
+            max_equity = new_equity
+        dd = (max_equity - new_equity) / max_equity
+        if dd > max_drawdown:
+            max_drawdown = dd
+
+    total_return = (equity[-1] / initial_cash) - 1.0
+    n_days = len(equity) - 1
+    ann_ret = (1 + total_return) ** (252 / n_days) - 1 if n_days > 0 else 0.0
+    win_rate = wins / max(1, (wins + loss_trades))
+
+    # Trim equity curve to keep payload small (last 365 points)
+    curve = [{"date": d, "equity": round(e, 2)} for d, e in zip(dates, equity)][-365:]
+
+    return {
+        "symbol": symbol.upper(),
+        "asof": dates[-1],
+        "params": {"fast": fast, "slow": slow, "initial_cash": initial_cash},
+        "metrics": {
+            "total_return": round(total_return, 4),
+            "annualized_return": round(ann_ret, 4),
+            "max_drawdown": round(max_drawdown, 4),
+            "trades": trades,
+            "win_rate": round(win_rate, 4),
+            "bars": len(dates),
+        },
+        "equity_curve": curve,
+    }
+
+
 app.include_router(trading)
 
 # -------------------------
