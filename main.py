@@ -28,10 +28,12 @@ def root():
 @app.get("/health")
 def health():
     return {
+        "ok": True,                     # <-- add this for the old UI
         "status": "OK",
         "utc": dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
         "app": APP_NAME,
     }
+
 
 # -------------------------
 # Stubs you already expose (safe to keep)
