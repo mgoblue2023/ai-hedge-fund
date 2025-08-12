@@ -1,5 +1,4 @@
 
-
 from __future__ import annotations
 import os
 from datetime import datetime
@@ -103,29 +102,36 @@ def _sma_returns(close: pd.Series, fast: int = 20, slow: int = 50) -> pd.Series:
     return position * rets
 
 def _latest_sma_signal(close: pd.Series, fast: int = 20, slow: int = 50) -> Dict[str, Any]:
-    fast_ma = close.rolling(fast, min_periods=fast).mean()
-    slow_ma = close.rolling(slow, min_periods=slow).mean()
-    if fast_ma.dropna().empty or slow_ma.dropna().empty:
+    if close is None or close.dropna().empty:
         return {"signal": "hold", "confidence": 0.0, "price": None}
-    f, s = float(fast_ma.iloc[-1]), float(slow_ma.iloc[-1])
+    close = close.dropna()
     price = float(close.iloc[-1])
-    spread = abs(f - s) / max(price, 1e-9)
-    conf = max(0.0, min(0.95, round(spread * 10, 2)))
-    if f > s:
-        return {"signal": "buy", "confidence": conf, "price": price}
-    elif f < s:
-        return {"signal": "sell", "confidence": conf, "price": price}
-    else:
-        return {"signal": "hold", "confidence": 0.0, "price": price}
+    if len(close) >= slow:
+        fast_ma = close.rolling(fast, min_periods=fast).mean()
+        slow_ma = close.rolling(slow, min_periods=slow).mean()
+        if not fast_ma.dropna().empty and not slow_ma.dropna().empty:
+            f, s = float(fast_ma.iloc[-1]), float(slow_ma.iloc[-1])
+            spread = abs(f - s) / max(price, 1e-9)
+            conf = max(0.0, min(0.95, round(spread * 10, 2)))
+            if f > s:
+                return {"signal": "buy", "confidence": conf, "price": price}
+            elif f < s:
+                return {"signal": "sell", "confidence": conf, "price": price}
+            else:
+                return {"signal": "hold", "confidence": 0.0, "price": price}
+    look = min(5, max(1, len(close) - 1))
+    if look >= 1 and len(close) > look:
+        ret = float(close.iloc[-1] / close.iloc[-1 - look] - 1.0)
+        conf = max(0.0, min(0.5, abs(ret) * 10))
+        sig = "buy" if ret > 0 else ("sell" if ret < 0 else "hold")
+        return {"signal": sig, "confidence": conf, "price": price}
+    return {"signal": "hold", "confidence": 0.0, "price": price}
 
 def _extract_closes(df: pd.DataFrame, tickers: List[str]) -> Tuple[Dict[str, pd.Series], List[str]]:
-    """Return {ticker: close_series} and a list of missing tickers."""
     closes: Dict[str, pd.Series] = {}
     missing: List[str] = []
-
     if df is None or df.empty:
-        return closes, tickers[:]  # everything missing
-
+        return closes, tickers[:]
     if isinstance(df.columns, pd.MultiIndex):
         for t in tickers:
             try:
@@ -147,135 +153,10 @@ def _extract_closes(df: pd.DataFrame, tickers: List[str]) -> Tuple[Dict[str, pd.
                 closes[t] = ser
         else:
             missing.append(t)
-
     return closes, missing
 
-def _safe_download(tickers: List[str],
-                   start_dt: pd.Timestamp,
-                   end_dt: pd.Timestamp,
-                   interval: str = "1d") -> pd.DataFrame:
-    """
-    Robust price fetcher:
-      1) Bulk yf.download(start/end)
-      2) Bulk yf.download(period=window)
-      3) Per-ticker .history(start/end)
-      4) Per-ticker .history(period=window)
-      5) Per-ticker Stooq CSV (https://stooq.com)
-    Returns a DataFrame with MultiIndex columns (ticker, 'Close') or empty df.
-    """
-    tickers = [t.strip().upper() for t in tickers if t.strip()]
-    if not tickers:
-        return pd.DataFrame()
-
-    start_s = start_dt.strftime("%Y-%m-%d")
-    end_s_excl = (end_dt + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    days = max(365, (end_dt - start_dt).days + 30)
-    period = "2y" if days > 365 else "1y"
-
-    # STEP 1: bulk start/end
-    try:
-        print(f"[DL] step1 bulk download start/end tickers={tickers} {start_s}..{end_s_excl}")
-        df = yf.download(
-            tickers=" ".join(tickers),
-            start=start_s,
-            end=end_s_excl,
-            interval=interval,
-            auto_adjust=True,
-            progress=False,
-            group_by="ticker",
-            threads=True,
-        )
-        if df is not None and not df.empty:
-            print(f"[DL] step1 ok shape={getattr(df,'shape',None)}")
-            return df
-        print("[DL] step1 empty")
-    except Exception as e:
-        print(f"[DL] step1 error: {e}")
-
-    # STEP 2: bulk with period
-    try:
-        print(f"[DL] step2 bulk download period={period} tickers={tickers}")
-        df = yf.download(
-            tickers=" ".join(tickers),
-            period=period,
-            interval=interval,
-            auto_adjust=True,
-            progress=False,
-            group_by="ticker",
-            threads=True,
-        )
-        if df is not None and not df.empty:
-            print(f"[DL] step2 ok shape={getattr(df,'shape',None)}")
-            return df
-        print("[DL] step2 empty")
-    except Exception as e:
-        print(f"[DL] step2 error: {e}")
-
-    # helper to combine per-ticker 'Close' into MultiIndex frame
-    def _combine(frames: List[pd.DataFrame]) -> pd.DataFrame:
-        if not frames:
-            return pd.DataFrame()
-        out = pd.concat(frames, axis=1).sort_index()
-        if not isinstance(out.columns, pd.MultiIndex):
-            out.columns = pd.MultiIndex.from_tuples(out.columns)
-        return out
-
-    # STEP 3: per-ticker start/end
-    frames = []
-    for t in tickers:
-        try:
-            print(f"[DL] step3 {t} history start/end {start_s}..{end_s_excl}")
-            h = yf.Ticker(t).history(start=start_s, end=end_s_excl, interval=interval, auto_adjust=True)
-            if h is not None and not h.empty and "Close" in h.columns:
-                ser = h["Close"].dropna().copy()
-                ser.index = pd.to_datetime(ser.index).tz_localize(None)
-                frames.append(pd.DataFrame({(t, "Close"): ser}))
-            else:
-                print(f"[DL] step3 {t} empty")
-        except Exception as e:
-            print(f"[DL] step3 {t} error: {e}")
-    df = _combine(frames)
-    if df is not None and not df.empty:
-        print(f"[DL] step3 combined ok shape={df.shape}")
-        return df
-
-    # STEP 4: per-ticker period
-    frames = []
-    for t in tickers:
-        try:
-            print(f"[DL] step4 {t} history period={period}")
-            h = yf.Ticker(t).history(period=period, interval=interval, auto_adjust=True)
-            if h is not None and not h.empty and "Close" in h.columns:
-                ser = h["Close"].dropna().copy()
-                ser.index = pd.to_datetime(ser.index).tz_localize(None)
-                frames.append(pd.DataFrame({(t, "Close"): ser}))
-            else:
-                print(f"[DL] step4 {t} empty")
-        except Exception as e:
-            print(f"[DL] step4 {t} error: {e}")
-    df = _combine(frames)
-    if df is not None and not df.empty:
-        print(f"[DL] step4 combined ok shape={df.shape}")
-        return df
-
-    # STEP 5: Stooq per-ticker (CSV)
-    frames = []
-    for t in tickers:
-        ser = _fetch_stooq_series(t, start_dt, end_dt)
-        if ser is not None and not ser.empty:
-            frames.append(pd.DataFrame({(t, "Close"): ser}))
-    if frames:
-        df = _combine(frames)
-        print(f"[DL] step5 stooq combined ok shape={df.shape}")
-        return df
-    print("[DL] step5 stooq empty")
-
-    print("[DL] all steps empty → returning empty df")
-    return pd.DataFrame()
-
-
+# --------- Stooq fallback helpers ----------
 def _stooq_symbol(t: str) -> str:
-    # Stooq uses e.g. spy.us, aapl.us, brk-b.us
     t = t.strip().lower().replace(".", "-")
     if not t.endswith(".us"):
         t = f"{t}.us"
@@ -302,36 +183,129 @@ def _fetch_stooq_series(ticker: str, start_dt: pd.Timestamp, end_dt: pd.Timestam
     ser = ser.dropna()
     return ser if not ser.empty else None
 
+def _safe_download(tickers: List[str], start_dt: pd.Timestamp, end_dt: pd.Timestamp, interval: str = "1d") -> pd.DataFrame:
+    tickers = [t.strip().upper() for t in tickers if t.strip()]
+    if not tickers:
+        return pd.DataFrame()
+    start_s = start_dt.strftime("%Y-%m-%d")
+    end_s_excl = (end_dt + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    days = max(365, (end_dt - start_dt).days + 30)
+    period = "2y" if days > 365 else "1y"
 
+    try:
+        print(f"[DL] step1 bulk download start/end tickers={tickers} {start_s}..{end_s_excl}")
+        df = yf.download(
+            tickers=" ".join(tickers),
+            start=start_s,
+            end=end_s_excl,
+            interval=interval,
+            auto_adjust=True,
+            progress=False,
+            group_by="ticker",
+            threads=True,
+        )
+        if df is not None and not df.empty:
+            print(f"[DL] step1 ok shape={getattr(df,'shape',None)}")
+            return df
+        print("[DL] step1 empty")
+    except Exception as e:
+        print(f"[DL] step1 error: {e}")
+
+    try:
+        print(f"[DL] step2 bulk download period={period} tickers={tickers}")
+        df = yf.download(
+            tickers=" ".join(tickers),
+            period=period,
+            interval=interval,
+            auto_adjust=True,
+            progress=False,
+            group_by="ticker",
+            threads=True,
+        )
+        if df is not None and not df.empty:
+            print(f"[DL] step2 ok shape={getattr(df,'shape',None)}")
+            return df
+        print("[DL] step2 empty")
+    except Exception as e:
+        print(f"[DL] step2 error: {e}")
+
+    def _combine(frames: List[pd.DataFrame]) -> pd.DataFrame:
+        if not frames:
+            return pd.DataFrame()
+        out = pd.concat(frames, axis=1).sort_index()
+        if not isinstance(out.columns, pd.MultiIndex):
+            out.columns = pd.MultiIndex.from_tuples(out.columns)
+        return out
+
+    frames = []
+    for t in tickers:
+        try:
+            print(f"[DL] step3 {t} history start/end {start_s}..{end_s_excl}")
+            h = yf.Ticker(t).history(start=start_s, end=end_s_excl, interval=interval, auto_adjust=True)
+            if h is not None and not h.empty and "Close" in h.columns:
+                ser = h["Close"].dropna().copy()
+                ser.index = pd.to_datetime(ser.index).tz_localize(None)
+                frames.append(pd.DataFrame({(t, "Close"): ser}))
+            else:
+                print(f"[DL] step3 {t} empty")
+        except Exception as e:
+            print(f"[DL] step3 {t} error: {e}")
+    df = _combine(frames)
+    if df is not None and not df.empty:
+        print(f"[DL] step3 combined ok shape={df.shape}")
+        return df
+
+    frames = []
+    for t in tickers:
+        try:
+            print(f"[DL] step4 {t} history period={period}")
+            h = yf.Ticker(t).history(period=period, interval=interval, auto_adjust=True)
+            if h is not None and not h.empty and "Close" in h.columns:
+                ser = h["Close"].dropna().copy()
+                ser.index = pd.to_datetime(ser.index).tz_localize(None)
+                frames.append(pd.DataFrame({(t, "Close"): ser}))
+            else:
+                print(f"[DL] step4 {t} empty")
+        except Exception as e:
+            print(f"[DL] step4 {t} error: {e}")
+    df = _combine(frames)
+    if df is not None and not df.empty:
+        print(f"[DL] step4 combined ok shape={df.shape}")
+        return df
+
+    frames = []
+    for t in tickers:
+        ser = _fetch_stooq_series(t, start_dt, end_dt)
+        if ser is not None and not ser.empty:
+            frames.append(pd.DataFrame({(t, "Close"): ser}))
+    if frames:
+        df = _combine(frames)
+        print(f"[DL] step5 stooq combined ok shape={df.shape}")
+        return df
+    print("[DL] step5 stooq empty")
+    print("[DL] all steps empty → returning empty df")
+    return pd.DataFrame()
 
 # ---------- Endpoints ----------
 @app.post("/hedge-fund/run")
 def hedge_run(req: RunRequest):
     if not req.tickers:
         raise HTTPException(status_code=400, detail="Provide at least one ticker.")
+    fast = int(max(2, req.fast))
+    slow = int(max(3, req.slow))
+    if fast >= slow:
+        raise HTTPException(status_code=400, detail="Invalid SMA inputs: fast must be less than slow.")
+    req.fast, req.slow = fast, slow
 
-# Validate SMA inputs
-fast = int(max(2, req.fast))
-slow = int(max(3, req.slow))
-if fast >= slow:
-    raise HTTPException(status_code=400, detail="Invalid SMA inputs: fast must be less than slow.")
-req.fast, req.slow = fast, slow
-
-# Ensure enough history for SMAs
-min_hist_days = max(120, slow * 2)
-fetch_start = min(_parse_date(req.start_date) if req.start_date else (pd.Timestamp.today().normalize() - pd.Timedelta(days=420)),
-                  (pd.Timestamp.today().normalize() if not req.end_date else _parse_date(req.end_date)) - pd.Timedelta(days=min_hist_days))
-df = _safe_download(req.tickers, fetch_start, _parse_date(req.end_date) if req.end_date else pd.Timestamp.today().normalize(), interval="1d")
-
-
-    # Default lookback ~ 300 trading days for MAs
     today = pd.Timestamp.today().normalize()
     end_dt = _parse_date(req.end_date) if req.end_date else today
     if end_dt > today:
         end_dt = today
     start_dt = _parse_date(req.start_date) if req.start_date else (end_dt - pd.Timedelta(days=420))
+    min_hist_days = max(120, slow * 2)
+    fetch_start = min(start_dt, end_dt - pd.Timedelta(days=min_hist_days))
 
-    df = _safe_download(req.tickers, start_dt, end_dt, interval="1d")
+    df = _safe_download(req.tickers, fetch_start, end_dt, interval="1d")
     closes, missing = _extract_closes(df, req.tickers)
     if not closes:
         raise HTTPException(status_code=404, detail=f"No price data for: {', '.join(missing)}")
@@ -349,7 +323,6 @@ df = _safe_download(req.tickers, fetch_start, _parse_date(req.end_date) if req.e
 
     if missing:
         analyst["_warnings"] = {"missing": missing}
-
     return {"decisions": decisions, "analyst_signals": analyst, "generated_at": datetime.utcnow().isoformat() + "Z"}
 
 @app.post("/data/prices")
@@ -388,13 +361,12 @@ def backtest(req: BacktestRequest):
         raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD.")
     if start_dt > end_dt:
         raise HTTPException(status_code=400, detail="start_date must be before end_date")
-# Validate SMA inputs
-fast = int(max(2, req.fast))
-slow = int(max(3, req.slow))
-if fast >= slow:
-    raise HTTPException(status_code=400, detail="Invalid SMA inputs: fast must be less than slow.")
-req.fast, req.slow = fast, slow
 
+    fast = int(max(2, req.fast))
+    slow = int(max(3, req.slow))
+    if fast >= slow:
+        raise HTTPException(status_code=400, detail="Invalid SMA inputs: fast must be less than slow.")
+    req.fast, req.slow = fast, slow
 
     df = _safe_download(req.tickers, start_dt, end_dt, interval="1d")
     closes, missing = _extract_closes(df, req.tickers)
@@ -426,19 +398,15 @@ req.fast, req.slow = fast, slow
         "benchmark": bench.round(2).astype(float).tolist(),
     }
     end_val = float(equity.iloc[-1]) if len(equity) else float(req.initial_capital)
-    final_port = {
-        "cash": round(end_val, 2),
-        "positions": {t: 0 for t in req.tickers},
-        "portfolio_value": round(end_val, 2),
-    }
-    return {
-        "performance_metrics": metrics,
-        "final_portfolio": final_port,
-        "total_days": int((end_dt - start_dt).days + 1),
-        "equity_curve": equity_curve,
-        "generated_at": datetime.utcnow().isoformat() + "Z",
-        "missing": missing,
-    }
+    final_port = {"cash": round(end_val, 2),
+                  "positions": {t: 0 for t in req.tickers},
+                  "portfolio_value": round(end_val, 2)}
+    return {"performance_metrics": metrics,
+            "final_portfolio": final_port,
+            "total_days": int((end_dt - start_dt).days + 1),
+            "equity_curve": equity_curve,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "missing": missing}
 
 # Local dev entrypoint
 if __name__ == "__main__":
