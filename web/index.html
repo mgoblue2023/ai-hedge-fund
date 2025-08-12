@@ -572,5 +572,212 @@
     // initial
     checkHealth(false);
   </script>
+<!-- Trade Sizing + Execution Log (one-drop add-on) -->
+<script>
+(function initHF(){
+  if (document.getElementById("hf-trading")) return; // avoid duplicates
+
+  function run() {
+    // 1) Scoped styles
+    const css = `
+      #hf-trading { margin: 24px 0; }
+      #hf-trading .hf-card { border:1px solid #e5e7eb; border-radius:12px; padding:16px; background:#fff; }
+      #hf-trading h2 { margin:0 0 12px; }
+      #hf-trading .hf-grid { display:grid; grid-template-columns:repeat(6,minmax(140px,1fr)); gap:12px; }
+      #hf-trading label { font-size:12px; display:flex; flex-direction:column; gap:6px; }
+      #hf-trading input, #hf-trading select, #hf-trading button { padding:8px 10px; border-radius:10px; }
+      #hf-trading table { width:100%; border-collapse:collapse; font-size:14px; }
+      #hf-trading th, #hf-trading td { padding:8px; border-bottom:1px solid #f0f0f0; text-align:left; }
+      @media (max-width:900px){ #hf-trading .hf-grid { grid-template-columns:repeat(2,minmax(140px,1fr)); } }
+    `;
+    const st = document.createElement("style");
+    st.id = "hf-styles";
+    st.textContent = css;
+    document.head.appendChild(st);
+
+    // 2) HTML block
+    const host = document.createElement("section");
+    host.id = "hf-trading";
+    host.innerHTML = `
+      <div class="hf-card">
+        <h2>Trade Sizing</h2>
+        <div class="hf-grid">
+          <label>Mode
+            <select id="hf-ts-mode">
+              <option value="risk_pct">Risk %</option>
+              <option value="allocation_pct">Allocation %</option>
+              <option value="fixed_cash">Fixed Cash</option>
+            </select>
+          </label>
+          <label>Price <input id="hf-ts-price" type="number" step="0.0001" placeholder="e.g. 100"></label>
+          <label>Equity <input id="hf-ts-equity" type="number" step="0.01" placeholder="e.g. 25000"></label>
+          <label>Risk % <input id="hf-ts-risk" type="number" step="0.01" placeholder="e.g. 1"></label>
+          <label>Stop Price <input id="hf-ts-stop" type="number" step="0.0001" placeholder="e.g. 95"></label>
+          <label>Allocation % <input id="hf-ts-alloc" type="number" step="0.01" placeholder="e.g. 5"></label>
+          <label>Fixed Cash <input id="hf-ts-cash" type="number" step="0.01" placeholder="e.g. 5000"></label>
+          <label>Lot Size <input id="hf-ts-lot" type="number" step="1" value="1"></label>
+          <label>Min Qty <input id="hf-ts-min" type="number" step="1" value="1"></label>
+          <label>Max Qty <input id="hf-ts-max" type="number" step="1" placeholder=""></label>
+          <label>Symbol <input id="hf-ts-symbol" placeholder="e.g. AAPL"></label>
+          <label>Side
+            <select id="hf-ts-side"><option>BUY</option><option>SELL</option></select>
+          </label>
+          <label style="grid-column:1/-1;">Strategy <input id="hf-ts-strategy" placeholder="optional tag"></label>
+        </div>
+        <div style="margin-top:12px;">
+          <button id="hf-calc-btn">Calculate Size</button>
+          <span id="hf-ts-out" style="margin-left:12px;font-weight:600;"></span>
+        </div>
+      </div>
+
+      <div class="hf-card">
+        <h2>Execution</h2>
+        <div class="hf-grid">
+          <label>Symbol <input id="hf-ex-symbol" placeholder="e.g. AAPL"></label>
+          <label>Side
+            <select id="hf-ex-side"><option>BUY</option><option>SELL</option></select>
+          </label>
+          <label>Qty <input id="hf-ex-qty" type="number" step="1"></label>
+          <label>Price <input id="hf-ex-price" type="number" step="0.0001"></label>
+          <label>Slippage (bps) <input id="hf-ex-slip" type="number" step="0.1" value="0"></label>
+          <label>Fee <input id="hf-ex-fee" type="number" step="0.01" value="0"></label>
+          <label style="grid-column:1/-1;">Strategy <input id="hf-ex-strategy" placeholder="optional"></label>
+          <label style="grid-column:1/-1;">Notes <input id="hf-ex-notes" placeholder="optional"></label>
+        </div>
+        <div style="margin-top:12px;">
+          <button id="hf-exec-btn">Execute (simulate)</button>
+          <span id="hf-ex-out" style="margin-left:12px;font-weight:600;"></span>
+        </div>
+
+        <h3 style="margin:20px 0 8px;">Execution Log</h3>
+        <div style="margin-bottom:8px;">
+          <input id="hf-fltr-symbol" placeholder="filter symbol" style="margin-right:6px;">
+          <input id="hf-fltr-strategy" placeholder="filter strategy" style="margin-right:6px;">
+          <button id="hf-refresh-btn">Refresh</button>
+        </div>
+        <div style="overflow:auto;max-height:420px;border:1px solid #eee;border-radius:8px;background:white;">
+          <table id="hf-exec-table">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Sym</th><th>Side</th><th>Qty</th><th>Price</th><th>Fill</th>
+                <th>Slip (bps)</th><th>Fee</th><th>Status</th><th>Strategy</th><th>Notes</th><th>ID</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    (document.querySelector("main") || document.body).appendChild(host);
+
+    // 3) JS wiring
+    const HF_BASE = window.location.origin;
+    const $ = (id) => document.getElementById(id);
+    const num = (id) => { const v = $(id).value; return v === "" ? null : Number(v); };
+
+    async function hfCalculateSize(){
+      const body = {
+        mode: $("hf-ts-mode").value,
+        price: Number($("hf-ts-price").value),
+        equity: Number($("hf-ts-equity").value),
+        risk_pct: num("hf-ts-risk"),
+        stop_price: num("hf-ts-stop"),
+        allocation_pct: num("hf-ts-alloc"),
+        cash_to_use: num("hf-ts-cash"),
+        lot_size: Number($("hf-ts-lot").value || 1),
+        min_qty: Number($("hf-ts-min").value || 1),
+        max_qty: num("hf-ts-max"),
+        symbol: $("hf-ts-symbol").value || null,
+        side: $("hf-ts-side").value || null,
+        strategy: $("hf-ts-strategy").value || null
+      };
+      try{
+        const r = await fetch(`${HF_BASE}/hedge-fund/size`, {
+          method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)
+        });
+        if(!r.ok){ $("hf-ts-out").textContent = "Error: " + (await r.text()); return; }
+        const data = await r.json();
+        $("hf-ts-out").textContent = `Qty ${data.qty} (~$${Number(data.dollars).toFixed(2)}), mode=${data.mode_used}`;
+        if (data.qty > 0){
+          $("hf-ex-symbol").value = body.symbol || "";
+          $("hf-ex-side").value = body.side || "BUY";
+          $("hf-ex-qty").value = data.qty;
+          $("hf-ex-price").value = body.price;
+          $("hf-ex-strategy").value = body.strategy || "";
+        }
+      }catch(e){ $("hf-ts-out").textContent = "Error: " + e; }
+    }
+
+    async function hfExecuteTrade(){
+      const body = {
+        symbol: $("hf-ex-symbol").value,
+        side: $("hf-ex-side").value,
+        qty: Number($("hf-ex-qty").value),
+        price: Number($("hf-ex-price").value),
+        slippage_bps: Number($("hf-ex-slip").value || 0),
+        fee: Number($("hf-ex-fee").value || 0),
+        strategy: $("hf-ex-strategy").value || null,
+        notes: $("hf-ex-notes").value || null
+      };
+      try{
+        const r = await fetch(`${HF_BASE}/hedge-fund/execute`, {
+          method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)
+        });
+        if(!r.ok){ $("hf-ex-out").textContent = "Error: " + (await r.text()); return; }
+        const data = await r.json();
+        $("hf-ex-out").textContent = `OK #${data.id} @ ${data.fill_price} (net fee ${body.fee})`;
+        hfLoadExecs();
+      }catch(e){ $("hf-ex-out").textContent = "Error: " + e; }
+    }
+
+    async function hfLoadExecs(){
+      const p = new URLSearchParams();
+      const sym = $("hf-fltr-symbol").value.trim();
+      const strat = $("hf-fltr-strategy").value.trim();
+      if (sym) p.set("symbol", sym);
+      if (strat) p.set("strategy", strat);
+      const r = await fetch(`${HF_BASE}/hedge-fund/executions?${p.toString()}`);
+      const rows = await r.json();
+      const tb = $("hf-exec-table").querySelector("tbody");
+      tb.innerHTML = "";
+      for (const x of rows){
+        const tr = document.createElement("tr");
+        [x.ts_utc, x.symbol, x.side, x.qty, x.price, x.fill_price, x.slippage_bps, x.fee, x.status, x.strategy || "", x.notes || "", x.id]
+          .forEach(c => { const td = document.createElement("td"); td.textContent = c; tr.appendChild(td); });
+        tb.appendChild(tr);
+      }
+    }
+
+    function hfToggleFields(){
+      const m = $("hf-ts-mode").value;
+      $("hf-ts-risk").closest("label").style.display = (m==="risk_pct") ? "" : "none";
+      $("hf-ts-stop").closest("label").style.display = (m==="risk_pct") ? "" : "none";
+      $("hf-ts-alloc").closest("label").style.display = (m==="allocation_pct") ? "" : "none";
+      $("hf-ts-cash").closest("label").style.display = (m==="fixed_cash") ? "" : "none";
+    }
+
+    $("hf-ts-mode").addEventListener("change", hfToggleFields);
+    $("hf-calc-btn").addEventListener("click", hfCalculateSize);
+    $("hf-exec-btn").addEventListener("click", hfExecuteTrade);
+    $("hf-refresh-btn").addEventListener("click", hfLoadExecs);
+
+    hfToggleFields();
+    hfLoadExecs();
+
+    // expose (optional)
+    window.hfCalculateSize = hfCalculateSize;
+    window.hfExecuteTrade  = hfExecuteTrade;
+    window.hfLoadExecs     = hfLoadExecs;
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  } else {
+    run();
+  }
+})();
+</script>
+
 </body>
 </html>
