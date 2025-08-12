@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ai-hedge-fund
+    env: python
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "true"
+      # SQLite resets on redeploys in /tmp. For persistence, see the disk example below.
+      - key: EXEC_DB_PATH
+        value: /tmp/executions.db

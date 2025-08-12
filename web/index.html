@@ -1,577 +1,239 @@
-
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>AI Hedge — Starter UI</title>
+  <meta charset="utf-8">
+  <title>AI Hedge Fund</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root { color-scheme: light dark;
-      --bg0:#0b0f17; --bg1:#101726; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.12);
-      --fg:#e7e9ee; --muted:#9aa0a6; --green:#18c37d; --red:#ff5a6e; --primary:#7f5af0;
-      --pill:#111726;
-    }
-    *{box-sizing:border-box} html,body{height:100%}
-    body{
-      margin:0; color:var(--fg);
-      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      background:
-        radial-gradient(1200px 600px at 0% 0%, rgba(127,90,240,.12), transparent 60%),
-        radial-gradient(1000px 500px at 100% 0%, rgba(44,182,125,.12), transparent 55%),
-        linear-gradient(180deg,var(--bg0),var(--bg1));
-    }
-    header{
-      position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;
-      padding:12px 18px;backdrop-filter:blur(10px);background:rgba(8,12,18,.55);border-bottom:1px solid var(--border)
-    }
-    .brand{display:flex;align-items:center;gap:10px}
-    .logo-dot{width:10px;height:10px;border-radius:999px;background:radial-gradient(circle at 30% 30%,#2cb67d,#7f5af0);box-shadow:0 0 14px rgba(127,90,240,.6)}
-    .title{margin:0;font-size:16px;letter-spacing:.2px}
-    .header-right{display:flex;gap:10px;align-items:center}
-    .env-badge{font-size:11px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--muted)}
-    .env-live{color:#ffd166;border-color:rgba(255,209,102,.35)}
-    .env-local{color:#7bdcff;border-color:rgba(123,220,255,.35)}
-
-    .btn{background:var(--card);color:var(--fg);border:1px solid var(--border);padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer;transition:transform .04s,filter .15s; display:inline-flex; align-items:center; gap:8px}
-    .btn:hover{filter:brightness(1.1)} .btn:active{transform:translateY(1px)}
-    .btn.primary{border-color:rgba(127,90,240,.45);box-shadow:inset 0 0 0 1px rgba(127,90,240,.25)}
-    .btn.danger{border-color:rgba(255,90,110,.35)}
-    .btn svg { width:14px; height:14px; flex:0 0 14px }
-
-    .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--pill)}
-    .pill .pdot{width:8px;height:8px;border-radius:999px;background:var(--muted)}
-    .pill.ok{color:var(--green);border-color:rgba(24,195,125,.35)} .pill.ok .pdot{background:var(--green)}
-    .pill.down{color:var(--red);border-color:rgba(255,90,110,.35)} .pill.down .pdot{background:var(--red)}
-
-    .page{max-width:1200px;margin:14px auto;padding:0 16px 24px}
-    .grid{display:grid;grid-template-columns:0.35fr 0.65fr;gap:24px}
-    @media(max-width:1000px){.grid{grid-template-columns:1fr}}
-    .card{border:1px solid var(--border);border-radius:16px;background:var(--card);box-shadow:0 10px 25px rgba(0,0,0,.25);overflow:hidden}
-    .card-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:700}
-    .card-b{padding:16px}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
-    input[type="text"],input[type="date"],input[type="number"]{width:100%;max-width:260px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--fg)}
-
-    .status{font-size:12px;color:var(--muted)} .status.ok{color:var(--green)} .status.err{color:var(--red)}
-    .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
-    pre{margin:0;white-space:pre-wrap;word-wrap:break-word;max-height:240px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:12px;padding:12px}
-
-    footer{color:var(--muted);text-align:center;padding:12px;border-top:1px solid var(--border)}
-    code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
-
-    .chev{transition:transform .2s ease} .rot{transform:rotate(90deg)}
-    .collapse{height:0;overflow:hidden;transition:height .22s ease}
-    .qc-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-
-    .chart-wrap{margin-top:14px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.25);padding:8px}
-    #eqCanvas{width:100%;height:260px;display:block}
-    .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin:6px 4px 0}
-    .key{display:inline-flex;align-items:center;gap:6px}
-    .swatch{width:10px;height:10px;border-radius:2px;background:#8ab4f8}
-    .swatch.bench{background:#fbbc04}
-    .legend small{opacity:.9}
-    .chart-note{font-size:12px;color:var(--muted);margin:6px 4px 0}
-
-    /* Summary panel + table + chips */
-    .summary{border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.04);
-      padding:12px;font-size:14px;line-height:1.5;margin:8px 0 10px}
-    .summary h5{margin:0 0 6px;font-size:14px;color:var(--muted)}
-    .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border);
-      background:var(--card);font-size:12px;margin-left:6px}
-
-    .table{width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-    .table th,.table td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left}
-    .table thead th{font-size:12px;color:var(--muted);background:rgba(255,255,255,.04)}
-    .table tbody tr:last-child td{border-bottom:none}
-
-    .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);font-size:12px;font-weight:700;letter-spacing:.2px}
-    .chip.buy{color:#16d39a;border-color:rgba(22,211,154,.35)}
-    .chip.sell{color:#ff5a6e;border-color:rgba(255,90,110,.35)}
-    .chip.hold,.chip.neutral{color:#9aa0a6;border-color:rgba(154,160,166,.35)}
-    .chip svg{width:12px;height:12px}
+    :root { --ok:#10b981; --down:#ef4444; --muted:#6b7280; --border:#e5e7eb; }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; background: #fafafa; color: #111827; }
+    header { position: sticky; top: 0; background: white; border-bottom: 1px solid var(--border); padding: 12px 16px; display:flex; align-items:center; justify-content:space-between; }
+    .title { font-weight: 700; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); }
+    .pill.ok { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+    .pill.down { color: #7f1d1d; background: #fef2f2; border-color: #fecaca; }
+    main { max-width: 1100px; margin: 24px auto; padding: 0 16px 40px; }
+    section.card { background:white; border:1px solid var(--border); border-radius: 14px; padding: 16px; margin: 16px 0; box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
+    h2 { margin: 0 0 12px; }
+    label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap:6px; }
+    input, select { padding: 8px 10px; border:1px solid var(--border); border-radius: 10px; font-size: 14px; width: 100%; }
+    button { padding: 10px 14px; border:1px solid var(--border); background:white; border-radius: 12px; font-weight:600; cursor:pointer; }
+    button:hover { background:#f9fafb; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+    thead th { position: sticky; top: 0; background: #fff; z-index: 1; }
+    .grid { display:grid; grid-template-columns:repeat(6,minmax(140px,1fr)); gap: 12px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: repeat(2,minmax(140px,1fr)); } }
   </style>
 </head>
 <body>
   <header>
-    <div class="brand">
-      <span class="logo-dot"></span>
-      <h1 class="title">AI Hedge — Starter UI</h1>
-    </div>
-    <div class="header-right">
-      <span id="envBadge" class="env-badge">ENV</span>
+    <div class="title">AI Hedge Fund — Web</div>
+    <div class="row">
+      <button id="btn-health" onclick="checkHealth()">Health</button>
+      <span id="pill" class="pill">Checking…</span>
     </div>
   </header>
 
-  <main class="page">
-    <section class="grid">
-      <!-- Left: Quick Check (collapsible) -->
-      <div class="card" id="qcCard">
-        <div class="card-h" id="qcHeader" style="cursor:pointer">
-          <span>Quick Check</span>
-          <div class="qc-actions" aria-hidden="true">
-            <span id="healthPill" class="pill"><span class="pdot"></span><span class="plabel">—</span></span>
-            <button id="btnHealth" class="btn">Health</button>
-            <span class="chev" id="qcChev">▶</span>
-          </div>
-        </div>
-        <div class="card-b collapse" id="qcBody">
-          <div class="row" style="margin-bottom:10px">
-            <button id="btnPing" class="btn primary">Call <code>/health</code></button>
-            <button id="btnClearPing" class="btn danger">Clear</button>
-            <span id="status" class="status"></span>
-          </div>
-          <pre id="out">(click the button)</pre>
-        </div>
+  <main>
+    <!-- Trade Sizing -->
+    <section class="card">
+      <h2>Trade Sizing</h2>
+      <div class="grid">
+        <label>Mode
+          <select id="ts-mode">
+            <option value="risk_pct">Risk %</option>
+            <option value="allocation_pct">Allocation %</option>
+            <option value="fixed_cash">Fixed Cash</option>
+          </select>
+        </label>
+        <label>Price <input id="ts-price" type="number" step="0.0001" placeholder="e.g. 100"></label>
+        <label>Equity <input id="ts-equity" type="number" step="0.01" placeholder="e.g. 25000"></label>
+        <label>Risk % <input id="ts-risk" type="number" step="0.01" placeholder="e.g. 1"></label>
+        <label>Stop Price <input id="ts-stop" type="number" step="0.0001" placeholder="e.g. 95"></label>
+        <label>Allocation % <input id="ts-alloc" type="number" step="0.01" placeholder="e.g. 5"></label>
+        <label>Fixed Cash <input id="ts-cash" type="number" step="0.01" placeholder="e.g. 5000"></label>
+        <label>Lot Size <input id="ts-lot" type="number" step="1" value="1"></label>
+        <label>Min Qty <input id="ts-min" type="number" step="1" value="1"></label>
+        <label>Max Qty <input id="ts-max" type="number" step="1" placeholder=""></label>
+        <label>Symbol <input id="ts-symbol" placeholder="e.g. AAPL"></label>
+        <label>Side
+          <select id="ts-side"><option>BUY</option><option>SELL</option></select>
+        </label>
+        <label style="grid-column:1/-1;">Strategy <input id="ts-strategy" placeholder="optional tag"></label>
+      </div>
+      <div style="margin-top:12px;">
+        <button onclick="calculateSize()">Calculate Size</button>
+        <span id="ts-out" style="margin-left:12px;font-weight:600;"></span>
+      </div>
+    </section>
+
+    <!-- Execute + Log -->
+    <section class="card">
+      <h2>Execution</h2>
+      <div class="grid">
+        <label>Symbol <input id="ex-symbol" placeholder="e.g. AAPL"></label>
+        <label>Side
+          <select id="ex-side"><option>BUY</option><option>SELL</option></select>
+        </label>
+        <label>Qty <input id="ex-qty" type="number" step="1"></label>
+        <label>Price <input id="ex-price" type="number" step="0.0001"></label>
+        <label>Slippage (bps) <input id="ex-slip" type="number" step="0.1" value="0"></label>
+        <label>Fee <input id="ex-fee" type="number" step="0.01" value="0"></label>
+        <label style="grid-column:1/-1;">Strategy <input id="ex-strategy" placeholder="optional"></label>
+        <label style="grid-column:1/-1;">Notes <input id="ex-notes" placeholder="optional"></label>
+      </div>
+      <div style="margin-top:12px;">
+        <button onclick="executeTrade()">Execute (simulate)</button>
+        <span id="ex-out" style="margin-left:12px;font-weight:600;"></span>
       </div>
 
-      <!-- Right: Controls + Equity Chart -->
-      <div class="card">
-        <div class="card-h">Hedge-Fund Controls</div>
-        <div class="card-b">
-          <div class="row">
-            <div>
-              <label for="tickers">Tickers</label>
-              <input id="tickers" type="text" placeholder="e.g. AAPL, MSFT"/>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label for="start">Start date</label>
-              <input id="start" type="date"/>
-            </div>
-            <div>
-              <label for="end">End date</label>
-              <input id="end" type="date"/>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label for="cash">Initial cash ($)</label>
-              <input id="cash" type="number" value="100000"/>
-            </div>
-            <div>
-              <label for="fast">Fast SMA</label>
-              <input id="fast" type="number" min="2" max="400" value="20" />
-            </div>
-            <div>
-              <label for="slow">Slow SMA</label>
-              <input id="slow" type="number" min="3" max="400" value="50" />
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:14px">
-            <button id="btnRun" class="btn primary" title="Enter = Run">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              Run
-            </button>
-            <button id="btnBacktest" class="btn" title="Shift+Enter = Backtest">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h18M12 3v18"/></svg>
-              Backtest
-            </button>
-            <button id="btnCSV" class="btn">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18l5 5h-4a1 1 0 0 1-1-1V2zM6 13h12v-6h-5a2 2 0 0 1-2-2V3H6v10z"/></svg>
-              Download CSV
-            </button>
-            <button id="btnPNG" class="btn">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5C3.9 3 3 3.9 3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8 13l2.5 3 3.5-5 4.5 6H6l2-4z"/></svg>
-              Download PNG
-            </button>
-            <button id="btnClear" class="btn danger">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-              Clear
-            </button>
-            <span id="hfStatus" class="status"></span>
-          </div>
-
-          <h4 style="margin:14px 0 6px">Result</h4>
-
-          <!-- Summary panel -->
-          <div id="hfSummary" class="summary" hidden></div>
-
-          <!-- Toggle + Raw JSON (hidden by default) -->
-          <button id="toggleRaw" class="btn" style="margin:8px 0;">Show raw JSON</button>
-          <pre id="hfOut" style="display:none">(results will appear here)</pre>
-
-          <div class="chart-wrap">
-            <canvas id="eqCanvas"></canvas>
-            <div class="legend">
-              <span class="key"><span class="swatch"></span> Strategy</span>
-              <span class="key"><span class="swatch bench"></span> Benchmark</span>
-            </div>
-            <div id="chartNote" class="chart-note"></div>
-          </div>
-
-          <div style="margin-top:8px; color:var(--muted); font-size:12px;">
-            Shortcuts: <small class="kbd">Enter</small> = Run, <small class="kbd">Shift+Enter</small> = Backtest.
-          </div>
-        </div>
+      <h3 style="margin:20px 0 8px;">Execution Log</h3>
+      <div style="margin-bottom:8px;">
+        <input id="fltr-symbol" placeholder="filter symbol" style="margin-right:6px;">
+        <input id="fltr-strategy" placeholder="filter strategy" style="margin-right:6px;">
+        <button onclick="loadExecs()">Refresh</button>
+      </div>
+      <div style="overflow:auto;max-height:420px;border:1px solid #eee;border-radius:8px;background:white;">
+        <table id="exec-table">
+          <thead>
+            <tr>
+              <th>Time (UTC)</th>
+              <th>Sym</th><th>Side</th><th>Qty</th><th>Price</th><th>Fill</th>
+              <th>Slip (bps)</th><th>Fee</th><th>Status</th><th>Strategy</th><th>Notes</th><th>ID</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
     </section>
   </main>
 
-  <footer>Open <code>/docs</code> for interactive API docs.</footer>
-
   <script>
-    const $ = id => document.getElementById(id);
+    const BASE = window.location.origin;
 
-    // --- Environment badge ---
-    (function envTag(){
-      const live = location.hostname.includes("onrender.com");
-      const el = $("envBadge");
-      el.textContent = live ? "LIVE" : "LOCAL";
-      el.classList.add(live ? "env-live" : "env-local");
-      el.title = location.origin;
-    })();
+    function val(id){ return document.getElementById(id).value; }
+    function num(id){ const v = document.getElementById(id).value; return v === "" ? null : Number(v); }
 
-    // --- Health Pill ---
-    const pill = $("healthPill"), pillLabel = pill.querySelector(".plabel");
-    function setPill(state){
-      pill.classList.remove("ok","down");
-      if(state===true){ pill.classList.add("ok"); pillLabel.textContent="OK"; }
-      else if(state===false){ pill.classList.add("down"); pillLabel.textContent="Down"; }
-      else { pillLabel.textContent="—"; }
-    }
-    async function checkHealth(showOut=false){
-      try{ const r=await fetch("/health"); const j=await r.json();
-        setPill(!!j.ok); if(showOut) $("out").textContent = JSON.stringify(j,null,2);
-      }catch{ setPill(false); if(showOut) $("out").textContent="Health check failed."; }
-    }
-    $("btnHealth").addEventListener("click",()=>checkHealth(true));
-    setInterval(checkHealth,60_000);
-
-    // --- Quick Check collapsible ---
-    const qcHeader=$("qcHeader"), qcBody=$("qcBody"), qcChev=$("qcChev");
-    function setQCCollapsed(collapsed){
-      sessionStorage.setItem("qcCollapsed", collapsed ? "1" : "0");
-      if(collapsed){ qcChev.classList.remove("rot"); qcBody.style.height="0px"; }
-      else { qcChev.classList.add("rot"); qcBody.style.height = qcBody.scrollHeight + "px"; }
-    }
-    qcHeader.addEventListener("click", ()=>{
-      const collapsed = sessionStorage.getItem("qcCollapsed") !== "1" ? false : true;
-      setQCCollapsed(!collapsed);
-    });
-
-    // --- Helpers ---
-    const hfStatus=$("hfStatus"), hfOut=$("hfOut"), chartNote=$("chartNote"), summaryBox=$("hfSummary");
-    const setHF=(m,c="")=>{hfStatus.className="status "+c;hfStatus.innerHTML=m};
-    const hfLoading=()=>setHF('<span class="spinner"></span> Working…');
-    const hfOk=m=>setHF(m,"ok"); const hfErr=m=>setHF(m,"err");
-
-    // Tolerant JSON fetch
-    const postJSON=async(path,body)=>{
-      const res=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-      const ct=(res.headers.get("content-type")||"").toLowerCase();
-      let payload=null;
-      if(ct.includes("application/json")){
-        try{ payload=await res.json(); }catch{}
-      }else{
-        try{ const txt=await res.text(); payload = txt && txt.trim().startsWith("{") ? JSON.parse(txt) : {detail: txt}; }catch{}
+    async function checkHealth(){
+      const pill = document.getElementById("pill");
+      try{
+        const r = await fetch(`${BASE}/health`, {cache:"no-store"});
+        const data = await r.json();
+        const ok = (data.status || "").toUpperCase() === "OK";
+        pill.textContent = ok ? "OK" : "Down";
+        pill.className = "pill " + (ok ? "ok" : "down");
+      }catch(e){
+        pill.textContent = "Down";
+        pill.className = "pill down";
       }
-      if(!res.ok){
-        const msg = payload?.detail || payload?.message || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      return payload ?? {};
-    };
-
-    // Autocorrect common ticker typos
-    const getTickers=()=>{
-      const alias = { APPL:"AAPL", BRKB:"BRK-B", BRKA:"BRK-A" };
-      return ($("tickers").value||"")
-        .split(",").map(s=>s.trim().toUpperCase())
-        .filter(Boolean).map(t => alias[t] || t);
-    };
-
-    const fmtPct = (x) => (x==null ? "—" : (x*100).toFixed(2) + "%");
-    const fmtUSD = (x) => (x==null ? "—" : "$" + Number(x).toLocaleString());
-
-    // --- SMA controls: read + validate ---
-    function getFastSlow(){
-      let fast = parseInt($("fast").value,10); let slow = parseInt($("slow").value,10);
-      if(!Number.isFinite(fast)) fast = 20;
-      if(!Number.isFinite(slow)) slow = 50;
-      fast = Math.max(2, Math.min(400, fast|0));
-      slow = Math.max(3, Math.min(400, slow|0));
-      if(fast >= slow) throw new Error("Fast SMA must be less than Slow SMA.");
-      return {fast, slow};
     }
 
-    // --- Equity Chart (Canvas) ---
-    const canvas = $("eqCanvas");
-    let ctx = canvas.getContext("2d");
-    let curve = null;
-
-    function sizeCanvas() {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = Math.max(600, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(220, Math.floor(rect.height * dpr));
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-      drawChart();
-    }
-
-    function drawChart() {
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      if (!curve || (!curve.strat?.length && !curve.bench?.length)) {
-        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--muted");
-        ctx.font = "12px ui-sans-serif, system-ui";
-        ctx.fillText("No equity curve to display yet.", 12, 20);
+    async function calculateSize(){
+      const body = {
+        mode: val("ts-mode"),
+        price: Number(val("ts-price")),
+        equity: Number(val("ts-equity")),
+        risk_pct: num("ts-risk"),
+        stop_price: num("ts-stop"),
+        allocation_pct: num("ts-alloc"),
+        cash_to_use: num("ts-cash"),
+        lot_size: Number(val("ts-lot") || 1),
+        min_qty: Number(val("ts-min") || 1),
+        max_qty: num("ts-max"),
+        symbol: val("ts-symbol") || null,
+        side: val("ts-side") || null,
+        strategy: val("ts-strategy") || null
+      };
+      const r = await fetch(`${BASE}/hedge-fund/size`, {
+        method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)
+      });
+      if(!r.ok){
+        const txt = await r.text();
+        document.getElementById("ts-out").textContent = `Error: ${txt}`;
         return;
       }
-      const pad = {l:48, r:12, t:14, b:24};
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      const x0 = pad.l, y0 = pad.t, x1 = W - pad.r, y1 = H - pad.b;
-      const n = Math.max(curve.strat?.length || 0, curve.bench?.length || 0);
-      const x = i => x0 + (i/(Math.max(1,n-1)))*(x1-x0);
+      const data = await r.json();
+      document.getElementById("ts-out").textContent =
+        `Qty ${data.qty} (~$${Number(data.dollars).toFixed(2)}), mode=${data.mode_used}`;
 
-      const all = [...(curve.strat||[]), ...(curve.bench||[])].filter(v => Number.isFinite(v));
-      const ymin = Math.min(...all), ymax = Math.max(...all);
-      const y = v => y1 - ((v - ymin) / (ymax - ymin || 1)) * (y1 - y0);
-
-      // axes
-      ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(x1, y1); ctx.stroke();
-
-      // grid + labels
-      ctx.font = "11px ui-sans-serif, system-ui";
-      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--muted");
-      for (let k=0;k<=4;k++){
-        const yy = y0 + k*(y1-y0)/4;
-        const val = (ymax - (k*(ymax-ymin)/4)).toFixed(0);
-        ctx.strokeStyle = "rgba(255,255,255,0.07)";
-        ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.stroke();
-        ctx.fillText(val, 6, yy+4);
+      if (data.qty > 0){
+        document.getElementById("ex-symbol").value = body.symbol || "";
+        document.getElementById("ex-side").value = body.side || "BUY";
+        document.getElementById("ex-qty").value = data.qty;
+        document.getElementById("ex-price").value = body.price;
+        document.getElementById("ex-strategy").value = body.strategy || "";
       }
+    }
 
-      function plot(series, color) {
-        if (!series || !series.length) return;
-        ctx.lineWidth = 2; ctx.strokeStyle = color; ctx.beginPath();
-        for (let i=0;i<series.length;i++){
-          const xi = x(i), yi = y(series[i]);
-          if (i===0) ctx.moveTo(xi, yi); else ctx.lineTo(xi, yi);
+    async function executeTrade(){
+      const body = {
+        symbol: val("ex-symbol"),
+        side: val("ex-side"),
+        qty: Number(val("ex-qty")),
+        price: Number(val("ex-price")),
+        slippage_bps: Number(val("ex-slip") || 0),
+        fee: Number(val("ex-fee") || 0),
+        strategy: val("ex-strategy") || null,
+        notes: val("ex-notes") || null
+      };
+      const r = await fetch(`${BASE}/hedge-fund/execute`, {
+        method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)
+      });
+      if(!r.ok){
+        const txt = await r.text();
+        document.getElementById("ex-out").textContent = `Error: ${txt}`;
+        return;
+      }
+      const data = await r.json();
+      document.getElementById("ex-out").textContent =
+        `OK #${data.id} @ ${data.fill_price} (net fee ${body.fee})`;
+      loadExecs();
+    }
+
+    async function loadExecs(){
+      const p = new URLSearchParams();
+      const sym = val("fltr-symbol").trim();
+      const strat = val("fltr-strategy").trim();
+      if (sym) p.set("symbol", sym);
+      if (strat) p.set("strategy", strat);
+      const r = await fetch(`${BASE}/hedge-fund/executions?${p.toString()}`);
+      const rows = await r.json();
+      const tb = document.querySelector("#exec-table tbody");
+      tb.innerHTML = "";
+      for (const x of rows){
+        const tr = document.createElement("tr");
+        const cells = [
+          x.ts_utc, x.symbol, x.side, x.qty, x.price, x.fill_price,
+          x.slippage_bps, x.fee, x.status, x.strategy || "", x.notes || "", x.id
+        ];
+        for (const c of cells){
+          const td = document.createElement("td");
+          td.textContent = c;
+          tr.appendChild(td);
         }
-        ctx.stroke();
+        tb.appendChild(tr);
       }
-      plot(curve.bench, "#fbbc04");
-      plot(curve.strat, "#8ab4f8");
-    }
-    window.addEventListener("resize", sizeCanvas);
-
-    function updateChartFromBacktest(bt) {
-      if (bt && bt.equity_curve && Array.isArray(bt.equity_curve.equity)) {
-        curve = {
-          dates: bt.equity_curve.dates || [],
-          strat: bt.equity_curve.equity || [],
-          bench: bt.equity_curve.benchmark || []
-        };
-        chartNote.textContent = "Chart from server-provided equity_curve.";
-      } else if (bt && bt.equity_curve && Array.isArray(bt.equity_curve.benchmark)) {
-        curve = { dates: bt.equity_curve.dates || [], strat: [], bench: bt.equity_curve.benchmark };
-        chartNote.textContent = "Only benchmark provided.";
-      } else {
-        curve = null;
-        chartNote.textContent = "No equity_curve in response.";
-      }
-      sizeCanvas();
     }
 
-    // --- Summary renderers ---
-    function renderBacktestSummary(bt){
-      if(!bt || !bt.equity_curve){ summaryBox.hidden = true; return; }
-      const m = bt.performance_metrics || {};
-      const eq = bt.equity_curve;
-      const start = eq.equity?.[0] ?? null;
-      const end   = eq.equity?.[eq.equity.length-1] ?? null;
-      const benchEnd = eq.benchmark?.[eq.benchmark.length-1] ?? null;
-      const stratRet = (start && end) ? (end/start - 1) : null;
-      const benchRet = (start && benchEnd) ? (benchEnd/start - 1) : null;
+    document.addEventListener("DOMContentLoaded", () => {
+      const mode = document.getElementById("ts-mode");
+      const toggleFields = () => {
+        const m = mode.value;
+        document.getElementById("ts-risk").parentElement.style.display = (m==="risk_pct") ? "" : "none";
+        document.getElementById("ts-stop").parentElement.style.display = (m==="risk_pct") ? "" : "none";
+        document.getElementById("ts-alloc").parentElement.style.display = (m==="allocation_pct") ? "" : "none";
+        document.getElementById("ts-cash").parentElement.style.display = (m==="fixed_cash") ? "" : "none";
+      };
+      mode.addEventListener("change", toggleFields);
+      toggleFields();
 
-      const {fast, slow} = getFastSlow();
-      summaryBox.innerHTML = `
-        <h5>Backtest Summary <span class="badge">SMA ${fast}/${slow}</span> <span class="badge">${eq.dates?.[0]||""} → ${eq.dates?.[eq.dates.length-1]||""}</span></h5>
-        <ul style="margin:6px 0 0 18px">
-          <li>Strategy return: <b>${fmtPct(stratRet)}</b> vs Benchmark: <b>${fmtPct(benchRet)}</b></li>
-          <li>Sharpe: <b>${m.sharpe_ratio?.toFixed?.(2) ?? "—"}</b>,
-              Vol: <b>${fmtPct(m.volatility)}</b>,
-              Max DD: <b>${fmtPct(m.max_drawdown)}</b>,
-              CAGR: <b>${fmtPct(m.cagr)}</b></li>
-          <li>Ending equity: <b>${fmtUSD(end)}</b></li>
-        </ul>`;
-      summaryBox.hidden = false;
-    }
-
-    function renderRunSummary(run){
-      if(!run || (!run.analyst_signals && !run.decisions)){ summaryBox.hidden = true; return; }
-      const decisions = run.decisions || {};
-      const signals = run.analyst_signals || {};
-
-      const iconUp   = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l7 8h-4v8H9v-8H5z"/></svg>';
-      const iconDown = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l-7-8h4V4h6v8h4z"/></svg>';
-      const iconDot  = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>';
-
-      const rows = Object.keys({...signals, ...decisions}).map(t=>{
-        const sig = signals[t] || {};
-        const action = (decisions[t]?.action || sig.signal || "hold").toLowerCase();
-        const conf = typeof sig.confidence === "number" ? Math.round(sig.confidence*100) : 0;
-        const price = sig.price!=null ? `$${Number(sig.price).toLocaleString()}` : "—";
-        const aIcon = action === "buy" ? iconUp : action === "sell" ? iconDown : iconDot;
-        const analyst = (sig.signal || "neutral");
-        const analystPretty = analyst[0].toUpperCase()+analyst.slice(1);
-
-        return `<tr>
-          <td><b>${t}</b></td>
-          <td><span class="chip ${action}">${aIcon}${action.toUpperCase()}</span></td>
-          <td><span class="chip neutral">${analystPretty}</span></td>
-          <td>${conf}%</td>
-          <td>${price}</td>
-        </tr>`;
-      }).join("");
-
-      const {fast, slow} = getFastSlow();
-      const warn = signals._warnings?.missing?.length
-        ? `<div style="margin-top:8px;color:var(--muted);font-size:12px">No data for: <b>${signals._warnings.missing.join(", ")}</b></div>`
-        : "";
-
-      summaryBox.innerHTML = `
-        <h5>Model decisions <span class="badge">SMA ${fast}/${slow}</span></h5>
-        <table class="table">
-          <thead><tr><th>Ticker</th><th>Decision</th><th>Analyst</th><th>Confidence</th><th>Price</th></tr></thead>
-          <tbody>${rows || "<tr><td colspan='5'>No signals.</td></tr>"}</tbody>
-        </table>
-        ${warn}`;
-      summaryBox.hidden = false;
-    }
-
-    // --- JSON toggle ---
-    const rawBtn = $("toggleRaw");
-    function setRawVisible(show) {
-      hfOut.style.display = show ? "block" : "none";
-      rawBtn.textContent = show ? "Hide raw JSON" : "Show raw JSON";
-    }
-    rawBtn.addEventListener("click", () => setRawVisible(hfOut.style.display === "none"));
-
-    // --- Init ---
-    document.addEventListener("DOMContentLoaded", ()=>{
-      // Default dates: 1y window, clamp end to today
-      const today = new Date(); const end = today.toISOString().slice(0,10);
-      const start = new Date(today); start.setFullYear(today.getFullYear()-1);
-      $("start").value=start.toISOString().slice(0,10); $("end").value=end;
-      $("fast").value = 20; $("slow").value = 50;
-
-      const saved = sessionStorage.getItem("qcCollapsed");
-      if (saved === null) {
-        const isMobile = window.innerWidth <= 1000;
-        setQCCollapsed(!isMobile);
-      } else {
-        setQCCollapsed(saved === "1");
-      }
-      checkHealth(false);
-      setTimeout(()=>{ if(sessionStorage.getItem("qcCollapsed")==="0"){ qcBody.style.height = qcBody.scrollHeight + "px"; }}, 120);
-
-      sizeCanvas();
+      checkHealth();
+      setInterval(checkHealth, 30000);
+      loadExecs();
     });
-
-    new ResizeObserver(()=>{ if(sessionStorage.getItem("qcCollapsed")==="0"){ qcBody.style.height = qcBody.scrollHeight + "px"; } }).observe(qcBody);
-
-    // --- Quick Check actions ---
-    const statusEl=$("status"), outEl=$("out");
-    const setStatus=(m,c="")=>{statusEl.className="status "+c;statusEl.innerHTML=m};
-    const loading=()=>setStatus('<span class="spinner"></span> Loading…');
-    const ok= m=>setStatus(m,"ok"); const err=m=>setStatus(m,"err");
-
-    $("btnPing").addEventListener("click", async ()=>{
-      try{
-        loading(); outEl.textContent="(waiting for response …)";
-        const res = await fetch("/health");
-        if(!res.ok) throw new Error("HTTP "+res.status);
-        const data = await res.json(); outEl.textContent = JSON.stringify(data,null,2); ok("Success");
-      }catch(e){ err(String(e.message||e)); outEl.textContent="No response or an error occurred."; }
-    });
-    $("btnClearPing").addEventListener("click", ()=>{ outEl.textContent="(click the button)"; setStatus(""); });
-
-    // --- RUN handler ---
-    $("btnRun").addEventListener("click", async () => {
-      try {
-        hfLoading(); summaryBox.hidden = true; chartNote.textContent = "";
-        const {fast, slow} = getFastSlow();
-        const payload = {
-          tickers: getTickers(),
-          start_date: $("start").value || null,
-          end_date: $("end").value || null,
-          initial_cash: Number($("cash").value || 100000),
-          fast, slow
-        };
-        const data = await postJSON("/hedge-fund/run", payload);
-        hfOut.textContent = JSON.stringify(data, null, 2);
-        hfOk("Run complete");
-        renderRunSummary(data);
-        setRawVisible(false);   // hide JSON on success
-      } catch (e) {
-        hfErr(String(e.message || e));
-        hfOut.textContent = String(e.message || "Error.");
-        setRawVisible(true);    // show JSON on error
-        summaryBox.hidden = true;
-      }
-    });
-
-    // --- BACKTEST handler ---
-    $("btnBacktest").addEventListener("click", async () => {
-      try {
-        hfLoading(); summaryBox.hidden = true; chartNote.textContent = "";
-        const today = new Date().toISOString().slice(0,10);
-        const safeEnd = $("end").value && $("end").value > today ? today : $("end").value;
-        const {fast, slow} = getFastSlow();
-        const payload = {
-          tickers: getTickers(),
-          start_date: $("start").value,
-          end_date: safeEnd,
-          initial_capital: Number($("cash").value || 100000),
-          fast, slow
-        };
-        if (!payload.start_date || !payload.end_date) throw new Error("Pick start and end dates.");
-        const data = await postJSON("/hedge-fund/backtest", payload);
-        hfOut.textContent = JSON.stringify(data, null, 2);
-        hfOk("Backtest complete");
-        renderBacktestSummary(data);
-        updateChartFromBacktest(data);
-        setRawVisible(false);   // hide JSON on success
-      } catch (e) {
-        hfErr(String(e.message || e));
-        hfOut.textContent = String(e.message || "Error.");
-        setRawVisible(true);    // show JSON on error
-        updateChartFromBacktest(null);
-        summaryBox.hidden = true;
-      }
-    });
-
-    // CSV / PNG
-    $("btnCSV").addEventListener("click", ()=>{
-      const blob=new Blob([hfOut.textContent||""],{type:"text/csv;charset=utf-8"});
-      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="results.csv"; a.click(); URL.revokeObjectURL(a.href);
-    });
-    $("btnPNG").addEventListener("click", ()=>{
-      const canvas2=document.createElement("canvas"), pre=hfOut, w=1000,h=600;
-      canvas2.width=w; canvas2.height=h; const c2=canvas2.getContext("2d");
-      c2.fillStyle="#0b0f17"; c2.fillRect(0,0,w,h);
-      c2.fillStyle="#e7e9ee"; c2.font="14px ui-monospace, Consolas, monospace";
-      const lines=(pre.textContent||"").split("\n"); let y=24; for(const line of lines.slice(0,34)){c2.fillText(line.slice(0,150),16,y); y+=18;}
-      const a=document.createElement("a"); a.href=canvas2.toDataURL("image/png"); a.download="results.png"; a.click();
-    });
-    $("btnClear").addEventListener("click", ()=>{ hfOut.textContent="(results will appear here)"; setHF(""); updateChartFromBacktest(null); summaryBox.hidden = true; setRawVisible(false); });
-
-    // Keyboard shortcuts
-    document.addEventListener("keydown",(e)=>{
-      if(e.key==="Enter" && !e.shiftKey){e.preventDefault();$("btnRun").click();}
-      if(e.key==="Enter" && e.shiftKey){e.preventDefault();$("btnBacktest").click();}
-    });
-
-    // initial
-    checkHealth(false);
   </script>
 </body>
 </html>
