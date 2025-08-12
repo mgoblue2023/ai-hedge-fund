@@ -8,6 +8,7 @@
     :root { color-scheme: light dark;
       --bg0:#0b0f17; --bg1:#101726; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.12);
       --fg:#e7e9ee; --muted:#9aa0a6; --green:#18c37d; --red:#ff5a6e; --primary:#7f5af0;
+      --pill:#111726;
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{
@@ -29,14 +30,18 @@
     .env-badge{font-size:11px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--muted)}
     .env-live{color:#ffd166;border-color:rgba(255,209,102,.35)}
     .env-local{color:#7bdcff;border-color:rgba(123,220,255,.35)}
-    .btn{background:var(--card);color:var(--fg);border:1px solid var(--border);padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer;transition:transform .04s,filter .15s}
+
+    .btn{background:var(--card);color:var(--fg);border:1px solid var(--border);padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer;transition:transform .04s,filter .15s; display:inline-flex; align-items:center; gap:8px}
     .btn:hover{filter:brightness(1.1)} .btn:active{transform:translateY(1px)}
     .btn.primary{border-color:rgba(127,90,240,.45);box-shadow:inset 0 0 0 1px rgba(127,90,240,.25)}
     .btn.danger{border-color:rgba(255,90,110,.35)}
-    .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--card)}
+    .btn svg { width:14px; height:14px; flex:0 0 14px }
+
+    .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--pill)}
     .pill .pdot{width:8px;height:8px;border-radius:999px;background:var(--muted)}
     .pill.ok{color:var(--green);border-color:rgba(24,195,125,.35)} .pill.ok .pdot{background:var(--green)}
     .pill.down{color:var(--red);border-color:rgba(255,90,110,.35)} .pill.down .pdot{background:var(--red)}
+
     .page{max-width:1200px;margin:14px auto;padding:0 16px 24px}
     .grid{display:grid;grid-template-columns:0.35fr 0.65fr;gap:24px}
     @media(max-width:1000px){.grid{grid-template-columns:1fr}}
@@ -46,15 +51,20 @@
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
     input[type="text"],input[type="date"],input[type="number"]{width:100%;max-width:260px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--fg)}
+
     .status{font-size:12px;color:var(--muted)} .status.ok{color:var(--green)} .status.err{color:var(--red)}
     .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
     @keyframes spin{to{transform:rotate(360deg)}}
+
     pre{margin:0;white-space:pre-wrap;word-wrap:break-word;max-height:240px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:12px;padding:12px}
+
     footer{color:var(--muted);text-align:center;padding:12px;border-top:1px solid var(--border)}
     code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
+
     .chev{transition:transform .2s ease} .rot{transform:rotate(90deg)}
     .collapse{height:0;overflow:hidden;transition:height .22s ease}
     .qc-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
     .chart-wrap{margin-top:14px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.25);padding:8px}
     #eqCanvas{width:100%;height:260px;display:block}
     .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin:6px 4px 0}
@@ -63,12 +73,24 @@
     .swatch.bench{background:#fbbc04}
     .legend small{opacity:.9}
     .chart-note{font-size:12px;color:var(--muted);margin:6px 4px 0}
-    /* summary panel */
+
+    /* Summary panel + table + chips */
     .summary{border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.04);
       padding:12px;font-size:14px;line-height:1.5;margin:8px 0 10px}
     .summary h5{margin:0 0 6px;font-size:14px;color:var(--muted)}
     .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border);
       background:var(--card);font-size:12px;margin-left:6px}
+
+    .table{width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .table th,.table td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left}
+    .table thead th{font-size:12px;color:var(--muted);background:rgba(255,255,255,.04)}
+    .table tbody tr:last-child td{border-bottom:none}
+
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);font-size:12px;font-weight:700;letter-spacing:.2px}
+    .chip.buy{color:#16d39a;border-color:rgba(22,211,154,.35)}
+    .chip.sell{color:#ff5a6e;border-color:rgba(255,90,110,.35)}
+    .chip.hold,.chip.neutral{color:#9aa0a6;border-color:rgba(154,160,166,.35)}
+    .chip svg{width:12px;height:12px}
   </style>
 </head>
 <body>
@@ -131,23 +153,48 @@
               <label for="cash">Initial cash ($)</label>
               <input id="cash" type="number" value="100000"/>
             </div>
+            <div>
+              <label for="fast">Fast SMA</label>
+              <input id="fast" type="number" min="2" max="400" value="20" />
+            </div>
+            <div>
+              <label for="slow">Slow SMA</label>
+              <input id="slow" type="number" min="3" max="400" value="50" />
+            </div>
           </div>
 
           <div class="row" style="margin-top:14px">
-            <button id="btnRun" class="btn primary">Run</button>
-            <button id="btnBacktest" class="btn">Backtest</button>
-            <button id="btnCSV" class="btn">Download CSV</button>
-            <button id="btnPNG" class="btn">Download PNG</button>
-            <button id="btnClear" class="btn danger">Clear</button>
+            <button id="btnRun" class="btn primary" title="Enter = Run">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Run
+            </button>
+            <button id="btnBacktest" class="btn" title="Shift+Enter = Backtest">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h18M12 3v18"/></svg>
+              Backtest
+            </button>
+            <button id="btnCSV" class="btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18l5 5h-4a1 1 0 0 1-1-1V2zM6 13h12v-6h-5a2 2 0 0 1-2-2V3H6v10z"/></svg>
+              Download CSV
+            </button>
+            <button id="btnPNG" class="btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5C3.9 3 3 3.9 3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8 13l2.5 3 3.5-5 4.5 6H6l2-4z"/></svg>
+              Download PNG
+            </button>
+            <button id="btnClear" class="btn danger">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              Clear
+            </button>
             <span id="hfStatus" class="status"></span>
           </div>
 
           <h4 style="margin:14px 0 6px">Result</h4>
 
-          <!-- NEW summary panel -->
+          <!-- Summary panel -->
           <div id="hfSummary" class="summary" hidden></div>
 
-          <pre id="hfOut">(results will appear here)</pre>
+          <!-- Toggle + Raw JSON (hidden by default) -->
+          <button id="toggleRaw" class="btn" style="margin:8px 0;">Show raw JSON</button>
+          <pre id="hfOut" style="display:none">(results will appear here)</pre>
 
           <div class="chart-wrap">
             <canvas id="eqCanvas"></canvas>
@@ -214,26 +261,49 @@
     const hfLoading=()=>setHF('<span class="spinner"></span> Working…');
     const hfOk=m=>setHF(m,"ok"); const hfErr=m=>setHF(m,"err");
 
-    // better error messages from API responses
+    // Tolerant JSON fetch
     const postJSON=async(path,body)=>{
       const res=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-      let data=null;
-      try{ data=await res.json(); }catch(_){}
+      const ct=(res.headers.get("content-type")||"").toLowerCase();
+      let payload=null;
+      if(ct.includes("application/json")){
+        try{ payload=await res.json(); }catch{}
+      }else{
+        try{ const txt=await res.text(); payload = txt && txt.trim().startsWith("{") ? JSON.parse(txt) : {detail: txt}; }catch{}
+      }
       if(!res.ok){
-        const msg = (data && (data.detail || data.message)) ? String(data.detail || data.message) : `HTTP ${res.status}`;
+        const msg = payload?.detail || payload?.message || `HTTP ${res.status}`;
         throw new Error(msg);
       }
-      return data;
+      return payload ?? {};
     };
 
-    const getTickers=()=>($("tickers").value||"").split(",").map(s=>s.trim().toUpperCase()).filter(Boolean);
+    // Autocorrect common ticker typos
+    const getTickers=()=>{
+      const alias = { APPL:"AAPL", BRKB:"BRK-B", BRKA:"BRK-A" };
+      return ($("tickers").value||"")
+        .split(",").map(s=>s.trim().toUpperCase())
+        .filter(Boolean).map(t => alias[t] || t);
+    };
+
     const fmtPct = (x) => (x==null ? "—" : (x*100).toFixed(2) + "%");
     const fmtUSD = (x) => (x==null ? "—" : "$" + Number(x).toLocaleString());
+
+    // --- SMA controls: read + validate ---
+    function getFastSlow(){
+      let fast = parseInt($("fast").value,10); let slow = parseInt($("slow").value,10);
+      if(!Number.isFinite(fast)) fast = 20;
+      if(!Number.isFinite(slow)) slow = 50;
+      fast = Math.max(2, Math.min(400, fast|0));
+      slow = Math.max(3, Math.min(400, slow|0));
+      if(fast >= slow) throw new Error("Fast SMA must be less than Slow SMA.");
+      return {fast, slow};
+    }
 
     // --- Equity Chart (Canvas) ---
     const canvas = $("eqCanvas");
     let ctx = canvas.getContext("2d");
-    let curve = null; // {dates, strat, bench}
+    let curve = null;
 
     function sizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
@@ -289,7 +359,6 @@
       plot(curve.bench, "#fbbc04");
       plot(curve.strat, "#8ab4f8");
     }
-
     window.addEventListener("resize", sizeCanvas);
 
     function updateChartFromBacktest(bt) {
@@ -321,8 +390,9 @@
       const stratRet = (start && end) ? (end/start - 1) : null;
       const benchRet = (start && benchEnd) ? (benchEnd/start - 1) : null;
 
+      const {fast, slow} = getFastSlow();
       summaryBox.innerHTML = `
-        <h5>Backtest Summary <span class="badge">${eq.dates?.[0]||""} → ${eq.dates?.[eq.dates.length-1]||""}</span></h5>
+        <h5>Backtest Summary <span class="badge">SMA ${fast}/${slow}</span> <span class="badge">${eq.dates?.[0]||""} → ${eq.dates?.[eq.dates.length-1]||""}</span></h5>
         <ul style="margin:6px 0 0 18px">
           <li>Strategy return: <b>${fmtPct(stratRet)}</b> vs Benchmark: <b>${fmtPct(benchRet)}</b></li>
           <li>Sharpe: <b>${m.sharpe_ratio?.toFixed?.(2) ?? "—"}</b>,
@@ -335,26 +405,63 @@
     }
 
     function renderRunSummary(run){
-      if(!run || !run.analyst_signals){ summaryBox.hidden = true; return; }
-      const rows = Object.entries(run.analyst_signals).map(([t,s])=>{
-        const conf = s && typeof s.confidence === "number" ? Math.round(s.confidence*100) : 0;
-        const px = s?.price!=null ? ` @ $${Number(s.price).toLocaleString()}` : "";
-        return `<li><b>${t}</b>: ${s?.signal || "hold"} <span class="badge">${conf}%</span>${px}</li>`;
+      if(!run || (!run.analyst_signals && !run.decisions)){ summaryBox.hidden = true; return; }
+      const decisions = run.decisions || {};
+      const signals = run.analyst_signals || {};
+
+      const iconUp   = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l7 8h-4v8H9v-8H5z"/></svg>';
+      const iconDown = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l-7-8h4V4h6v8h4z"/></svg>';
+      const iconDot  = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>';
+
+      const rows = Object.keys({...signals, ...decisions}).map(t=>{
+        const sig = signals[t] || {};
+        const action = (decisions[t]?.action || sig.signal || "hold").toLowerCase();
+        const conf = typeof sig.confidence === "number" ? Math.round(sig.confidence*100) : 0;
+        const price = sig.price!=null ? `$${Number(sig.price).toLocaleString()}` : "—";
+        const aIcon = action === "buy" ? iconUp : action === "sell" ? iconDown : iconDot;
+        const analyst = (sig.signal || "neutral");
+        const analystPretty = analyst[0].toUpperCase()+analyst.slice(1);
+
+        return `<tr>
+          <td><b>${t}</b></td>
+          <td><span class="chip ${action}">${aIcon}${action.toUpperCase()}</span></td>
+          <td><span class="chip neutral">${analystPretty}</span></td>
+          <td>${conf}%</td>
+          <td>${price}</td>
+        </tr>`;
       }).join("");
-      summaryBox.innerHTML = `<h5>Recommendations</h5><ul style="margin:6px 0 0 18px">${rows || "<li>No signals.</li>"}</ul>`;
+
+      const {fast, slow} = getFastSlow();
+      const warn = signals._warnings?.missing?.length
+        ? `<div style="margin-top:8px;color:var(--muted);font-size:12px">No data for: <b>${signals._warnings.missing.join(", ")}</b></div>`
+        : "";
+
+      summaryBox.innerHTML = `
+        <h5>Model decisions <span class="badge">SMA ${fast}/${slow}</span></h5>
+        <table class="table">
+          <thead><tr><th>Ticker</th><th>Decision</th><th>Analyst</th><th>Confidence</th><th>Price</th></tr></thead>
+          <tbody>${rows || "<tr><td colspan='5'>No signals.</td></tr>"}</tbody>
+        </table>
+        ${warn}`;
       summaryBox.hidden = false;
     }
 
+    // --- JSON toggle ---
+    const rawBtn = $("toggleRaw");
+    function setRawVisible(show) {
+      hfOut.style.display = show ? "block" : "none";
+      rawBtn.textContent = show ? "Hide raw JSON" : "Show raw JSON";
+    }
+    rawBtn.addEventListener("click", () => setRawVisible(hfOut.style.display === "none"));
+
     // --- Init ---
     document.addEventListener("DOMContentLoaded", ()=>{
-      // Default dates: 1y window, clamp end to today (avoid future date issues)
-      const today = new Date();
-      const end = today.toISOString().slice(0,10);
+      // Default dates: 1y window, clamp end to today
+      const today = new Date(); const end = today.toISOString().slice(0,10);
       const start = new Date(today); start.setFullYear(today.getFullYear()-1);
-      $("start").value=start.toISOString().slice(0,10);
-      $("end").value=end;
+      $("start").value=start.toISOString().slice(0,10); $("end").value=end;
+      $("fast").value = 20; $("slow").value = 50;
 
-      // collapse: desktop default collapsed, mobile expanded (<=1000px), unless user already chose
       const saved = sessionStorage.getItem("qcCollapsed");
       if (saved === null) {
         const isMobile = window.innerWidth <= 1000;
@@ -386,30 +493,59 @@
     });
     $("btnClearPing").addEventListener("click", ()=>{ outEl.textContent="(click the button)"; setStatus(""); });
 
-    // --- Hedge-Fund Controls ---
-    $("btnRun").addEventListener("click", async ()=>{
-      try{
-        hfLoading(); summaryBox.hidden = true; hfOut.textContent="(running …)";
-        const payload={tickers:getTickers(),start_date:$("start").value||null,end_date:$("end").value||null,initial_cash:Number($("cash").value||100000)};
-        const data=await postJSON("/hedge-fund/run",payload);
-        hfOut.textContent = JSON.stringify(data,null,2); hfOk("Run complete");
+    // --- RUN handler ---
+    $("btnRun").addEventListener("click", async () => {
+      try {
+        hfLoading(); summaryBox.hidden = true; chartNote.textContent = "";
+        const {fast, slow} = getFastSlow();
+        const payload = {
+          tickers: getTickers(),
+          start_date: $("start").value || null,
+          end_date: $("end").value || null,
+          initial_cash: Number($("cash").value || 100000),
+          fast, slow
+        };
+        const data = await postJSON("/hedge-fund/run", payload);
+        hfOut.textContent = JSON.stringify(data, null, 2);
+        hfOk("Run complete");
         renderRunSummary(data);
-      }catch(e){ hfErr(String(e.message||e)); hfOut.textContent = String(e.message||"Error."); summaryBox.hidden = true; }
+        setRawVisible(false);   // hide JSON on success
+      } catch (e) {
+        hfErr(String(e.message || e));
+        hfOut.textContent = String(e.message || "Error.");
+        setRawVisible(true);    // show JSON on error
+        summaryBox.hidden = true;
+      }
     });
 
-    $("btnBacktest").addEventListener("click", async ()=>{
-      try{
-        hfLoading(); summaryBox.hidden = true; hfOut.textContent="(backtesting …)";
-        // clamp end date to today to avoid future ranges
-        const endToday = new Date().toISOString().slice(0,10);
-        const end = $("end").value && $("end").value > endToday ? endToday : $("end").value;
-        const payload={tickers:getTickers(),start_date:$("start").value,end_date:end,initial_capital:Number($("cash").value||100000)};
-        if(!payload.start_date || !payload.end_date) throw new Error("Pick start and end dates.");
-        const data=await postJSON("/hedge-fund/backtest",payload);
-        hfOut.textContent = JSON.stringify(data,null,2); hfOk("Backtest complete");
+    // --- BACKTEST handler ---
+    $("btnBacktest").addEventListener("click", async () => {
+      try {
+        hfLoading(); summaryBox.hidden = true; chartNote.textContent = "";
+        const today = new Date().toISOString().slice(0,10);
+        const safeEnd = $("end").value && $("end").value > today ? today : $("end").value;
+        const {fast, slow} = getFastSlow();
+        const payload = {
+          tickers: getTickers(),
+          start_date: $("start").value,
+          end_date: safeEnd,
+          initial_capital: Number($("cash").value || 100000),
+          fast, slow
+        };
+        if (!payload.start_date || !payload.end_date) throw new Error("Pick start and end dates.");
+        const data = await postJSON("/hedge-fund/backtest", payload);
+        hfOut.textContent = JSON.stringify(data, null, 2);
+        hfOk("Backtest complete");
         renderBacktestSummary(data);
         updateChartFromBacktest(data);
-      }catch(e){ hfErr(String(e.message||e)); hfOut.textContent = String(e.message||"Error."); updateChartFromBacktest(null); summaryBox.hidden = true; }
+        setRawVisible(false);   // hide JSON on success
+      } catch (e) {
+        hfErr(String(e.message || e));
+        hfOut.textContent = String(e.message || "Error.");
+        setRawVisible(true);    // show JSON on error
+        updateChartFromBacktest(null);
+        summaryBox.hidden = true;
+      }
     });
 
     // CSV / PNG
@@ -425,13 +561,16 @@
       const lines=(pre.textContent||"").split("\n"); let y=24; for(const line of lines.slice(0,34)){c2.fillText(line.slice(0,150),16,y); y+=18;}
       const a=document.createElement("a"); a.href=canvas2.toDataURL("image/png"); a.download="results.png"; a.click();
     });
-    $("btnClear").addEventListener("click", ()=>{ hfOut.textContent="(results will appear here)"; setHF(""); updateChartFromBacktest(null); summaryBox.hidden = true; });
+    $("btnClear").addEventListener("click", ()=>{ hfOut.textContent="(results will appear here)"; setHF(""); updateChartFromBacktest(null); summaryBox.hidden = true; setRawVisible(false); });
 
     // Keyboard shortcuts
     document.addEventListener("keydown",(e)=>{
       if(e.key==="Enter" && !e.shiftKey){e.preventDefault();$("btnRun").click();}
       if(e.key==="Enter" && e.shiftKey){e.preventDefault();$("btnBacktest").click();}
     });
+
+    // initial
+    checkHealth(false);
   </script>
 </body>
 </html>
