@@ -817,5 +817,44 @@
 })();
 </script>
 
+  <script>
+(function addHfSignalCard(){
+  if (document.getElementById("hf-signal-card")) return;
+  const host = document.getElementById("hf-trading") || (document.querySelector("main") || document.body);
+  const card = document.createElement("div");
+  card.id = "hf-signal-card";
+  card.className = "hf-card";
+  card.innerHTML = `
+    <h2>SMA Signal</h2>
+    <div class="hf-grid">
+      <label>Symbol <input id="hf-sym" placeholder="AAPL"></label>
+      <label>Fast SMA <input id="hf-fast" type="number" value="10" step="1"></label>
+      <label>Slow SMA <input id="hf-slow" type="number" value="20" step="1"></label>
+    </div>
+    <div style="margin-top:12px;">
+      <button id="hf-get-signal">Get Signal</button>
+      <span id="hf-signal-out" style="margin-left:12px;font-weight:600;"></span>
+    </div>
+  `;
+  host.prepend(card);
+
+  const $ = (id) => document.getElementById(id);
+  document.getElementById("hf-get-signal").addEventListener("click", async () => {
+    const sym = $("hf-sym").value || "AAPL";
+    const fast = Number($("hf-fast").value || 10);
+    const slow = Number($("hf-slow").value || 20);
+    $("hf-signal-out").textContent = "…";
+    try{
+      const r = await fetch(`${location.origin}/hedge-fund/signal?symbol=${encodeURIComponent(sym)}&fast=${fast}&slow=${slow}`);
+      const data = await r.json();
+      $("hf-signal-out").textContent = `${data.symbol} ${data.signal} @ ${data.price} (F${data.fast}:${data.sma_fast.toFixed(2)} vs S${data.slow}:${data.sma_slow.toFixed(2)})`;
+    }catch(e){
+      $("hf-signal-out").textContent = "Error: " + e;
+    }
+  });
+})();
+</script>
+
+
 </body>
 </html>
