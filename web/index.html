@@ -92,6 +92,44 @@
     .chip.hold,.chip.neutral{color:#9aa0a6;border-color:rgba(154,160,166,.35)}
     .chip svg{width:12px;height:12px}
   </style>
+  <!-- HF add-on: dark theme overrides -->
+<style id="hf-dark-override">
+  /* Use your site's CSS variables, with safe fallbacks. !important to beat the add-on's defaults. */
+  #hf-trading .hf-card{
+    background: var(--card, #111827) !important;
+    border-color: var(--border, rgba(255,255,255,0.12)) !important;
+    color: var(--fg, #e5e7eb) !important;
+  }
+  #hf-trading label{ color: var(--muted, #9ca3af) !important; }
+
+  #hf-trading input,
+  #hf-trading select,
+  #hf-trading button{
+    background: var(--bg1, #0b1020) !important;
+    color: var(--fg, #e5e7eb) !important;
+    border: 1px solid var(--border, rgba(255,255,255,0.12)) !important;
+  }
+  #hf-trading input::placeholder,
+  #hf-trading select::placeholder{ color: var(--muted, #9ca3af) !important; opacity: .85; }
+
+  /* Buttons closer to your black style */
+  #hf-trading button{
+    background: var(--pill, #111726) !important;
+    border-color: var(--border, rgba(255,255,255,0.12)) !important;
+  }
+  #hf-trading button:hover{ filter: brightness(1.08); }
+
+  /* Table */
+  #hf-trading table{ color: var(--fg, #e5e7eb) !important; }
+  #hf-trading thead th{
+    background: var(--bg1, #0b1020) !important;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.12)) !important;
+  }
+  #hf-trading td, #hf-trading th{
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.12)) !important;
+  }
+</style>
+
 </head>
 <body>
   <header>
